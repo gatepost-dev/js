@@ -37,7 +37,8 @@ place, because the Stryker Vitest runner does not match Vitest 5 test names. Aft
 stops hard, run `git checkout packages/core && rm -rf packages/core/.stryker-tmp`, which also
 discards your uncommitted changes in that folder.
 
-Read `CONTRIBUTING.md` and `CODING_STANDARDS.md` before you open a pull request.
+Read [`CONTRIBUTING.md`](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) and
+`CODING_STANDARDS.md` before you open a pull request.
 
 ## Licence
 

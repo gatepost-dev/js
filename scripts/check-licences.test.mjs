@@ -77,7 +77,8 @@ describe('findViolations', () => {
 });
 
 describe('the default policy', () => {
-  // The first six are in the standard. The last three are permissive too (Ruling R31).
+  // The standard names the first six. The last three are permissive too, and dev tools in the
+  // tree use them.
   const permissive = [
     'MIT',
     'ISC',

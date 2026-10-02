@@ -196,11 +196,11 @@ The API report is in [`etc/core.api.md`](https://github.com/gatepost-dev/js/blob
 
 ## Support
 
-Ask questions in [GitHub Discussions](https://github.com/gatepost-dev/js/discussions). Report bugs in [GitHub Issues](https://github.com/gatepost-dev/js/issues). Report security problems privately, as [`SECURITY.md`](https://github.com/gatepost-dev/.github/blob/main/SECURITY.md) describes.
+Ask questions and report bugs in [GitHub Issues](https://github.com/gatepost-dev/js/issues). Report security problems privately, as [`SECURITY.md`](https://github.com/gatepost-dev/.github/blob/main/SECURITY.md) describes.
 
 ## Contributing
 
-Read `CONTRIBUTING.md` before you open a pull request.
+Read [`CONTRIBUTING.md`](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request.
 
 ## Licence
 
