@@ -34,14 +34,14 @@ export function segmentsOf(compact: string): Segments {
  */
 export function makePostcode(compact: string, precision: Precision): Postcode {
   const segments = segmentsOf(compact);
-  const parts = PRECISION_ORDER.flatMap((name) => {
-    const part = segments[name];
-    return part === null ? [] : [part];
+  const presentSegments = PRECISION_ORDER.flatMap((name) => {
+    const segment = segments[name];
+    return segment === null ? [] : [segment];
   });
   return Object.freeze({
     compact,
-    canonical: parts.join('-'),
-    display: parts.join(' '),
+    canonical: presentSegments.join('-'),
+    display: presentSegments.join(' '),
     segments,
     precision,
   });

@@ -65,9 +65,13 @@ interface Problem {
  * const parsed = parse('ek 01 a03 fk 01');
  * if (parsed.ok) {
  *   parsed.value.canonical; // 'EK-01-A03-FK-01'
- * } else {
- *   parsed.error.code; // for example 'bad_segment'
- *   parsed.error.suggestion; // for example 'EK-01-A03-FK-01', or null
+ * }
+ *
+ * const mistyped = parse('ek o1 a03 fk 01'); // a letter o where a zero belongs
+ * if (!mistyped.ok) {
+ *   mistyped.error.code; // 'bad_segment'
+ *   mistyped.error.segment; // 'lga'
+ *   mistyped.error.suggestion; // 'EK-01-A03-FK-01'
  * }
  * ```
  */
@@ -104,27 +108,28 @@ function firstProblem(segments: Segments): Problem | null {
     return { code: 'unknown_state', segment: 'state' };
   }
   const broken = SEGMENT_RULES.find((rule) => {
-    const part = segments[rule.name];
-    return part !== null && !followsRule(part, rule);
+    const segment = segments[rule.name];
+    return segment !== null && !followsRule(segment, rule);
   });
   return broken === undefined ? null : { code: 'bad_segment', segment: broken.name };
 }
 
-function followsRule(part: string, rule: SegmentRule): boolean {
+function followsRule(segment: string, rule: SegmentRule): boolean {
   switch (rule.characters) {
     case 'letters':
-      return LETTERS.test(part);
+      return LETTERS.test(segment);
     case 'digits':
-      return DIGITS.test(part) && (rule.minimum === null || Number(part) >= rule.minimum);
+      return DIGITS.test(segment) && (rule.minimum === null || Number(segment) >= rule.minimum);
     case 'letters-or-digits':
-      return CODE_CHARACTERS.test(part);
+      return CODE_CHARACTERS.test(segment);
   }
 }
 
 // A suggestion is a hint for the user. parse never returns the fixed code as a success.
+// Fixing a fixed code changes nothing, so the second parse ends the recursion at once.
 function suggest(text: string, options: Readonly<{ allowPartial?: boolean }>): string | null {
   const segments = segmentsOf(text);
-  const fixed = SEGMENT_RULES.map((rule) => fixPart(segments[rule.name], rule)).join('');
+  const fixed = SEGMENT_RULES.map((rule) => fixSegment(segments[rule.name], rule)).join('');
   if (fixed === text) {
     return null;
   }
@@ -132,15 +137,15 @@ function suggest(text: string, options: Readonly<{ allowPartial?: boolean }>): s
   return reparsed.ok ? reparsed.value.canonical : null;
 }
 
-function fixPart(part: string | null, rule: SegmentRule): string {
-  if (part === null) {
+function fixSegment(segment: string | null, rule: SegmentRule): string {
+  if (segment === null) {
     return '';
   }
   const fixes = FIXES[rule.characters];
   if (fixes === null) {
-    return part;
+    return segment;
   }
-  return Array.from(part, (character) => fixes.get(character) ?? character).join('');
+  return Array.from(segment, (character) => fixes.get(character) ?? character).join('');
 }
 
 function failure(
