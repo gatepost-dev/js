@@ -15,7 +15,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test && node --test scripts/check-licences.test.mjs",
+    "test": "pnpm -r run test && node --test scripts/*.test.mjs",
     "build": "pnpm -r run build",
     "package:check": "pnpm -r run package:check",
     "tells": "python3 spec/scripts/check-tells",

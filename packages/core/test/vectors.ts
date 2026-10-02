@@ -18,7 +18,30 @@ interface VectorFile<Input, Expect> {
   readonly cases: readonly VectorCase<Input, Expect>[];
 }
 
-const VECTORS = new URL('../../../spec/vectors/', import.meta.url);
+/** The folder of vector files, in the spec submodule. */
+export const VECTORS_FOLDER: URL = new URL('../../../spec/vectors/', import.meta.url);
+
+/**
+ * The vector files that have a runner. `loadVectors` takes only these names, and
+ * vectors.test.ts compares the list with the folder. So a new vector file fails there until
+ * someone writes its runner and adds its name here.
+ */
+export const VECTOR_FILES = [
+  'contains',
+  'is-legacy',
+  'normalize',
+  'parent',
+  'parse',
+  'parse-segments',
+  'parse-states',
+  'precision-for-accuracy',
+  'redact',
+  'state-name',
+  'truncate',
+] as const;
+
+/** The name of a vector file without `.json`. */
+export type VectorFileName = (typeof VECTOR_FILES)[number];
 
 /**
  * Reads one vector file and checks that it has the expected version, tests the expected
@@ -29,10 +52,10 @@ const VECTORS = new URL('../../../spec/vectors/', import.meta.url);
  * @returns The cases in the file.
  */
 export function loadVectors<Input, Expect>(
-  file: string,
+  file: VectorFileName,
   fn: string,
 ): readonly VectorCase<Input, Expect>[] {
-  const text = readFileSync(new URL(`${file}.json`, VECTORS), 'utf8');
+  const text = readFileSync(new URL(`${file}.json`, VECTORS_FOLDER), 'utf8');
   const vectorFile = JSON.parse(text) as VectorFile<Input, Expect>;
   if (vectorFile.version !== 1) {
     throw new Error(`${file}.json has version ${String(vectorFile.version)}, not 1.`);

@@ -9,6 +9,7 @@ import { URL } from 'node:url';
 
 const DATA_VERSION = 1;
 const SEPARATOR_LABEL = /^U\+[0-9A-F]{4,6}$/;
+const MAX_CODE_POINT = 0x10ffff;
 
 const root = new URL('../', import.meta.url);
 const target = new URL('packages/core/src/spec-data.ts', root);
@@ -40,11 +41,14 @@ function bracedEscape(hex) {
   return '\\u{' + hex + '}';
 }
 
-// A label such as "U+2013" becomes the escape for that code point. A label of another
-// shape would give a wrong regular expression and no error, so it throws.
+// A label such as "U+2013" becomes the escape for that code point. A label of another shape, or
+// one above the last code point, would give a wrong regular expression and no error, so it
+// throws. The type check comes first, because RegExp.test turns an array of one label into it.
 function escapeCodePoint(label) {
-  if (!SEPARATOR_LABEL.test(label)) {
-    throw new Error(`Bad separator label "${label}". Write U+ and 4 to 6 upper-case hex digits.`);
+  const hasShape = typeof label === 'string' && SEPARATOR_LABEL.test(label);
+  if (!hasShape || Number.parseInt(label.slice(2), 16) > MAX_CODE_POINT) {
+    const problem = `Bad separator label ${JSON.stringify(label)}.`;
+    throw new Error(`${problem} Write U+ and 4 to 6 upper-case hex digits, up to U+10FFFF.`);
   }
   return bracedEscape(label.slice(2));
 }
@@ -132,9 +136,14 @@ function renderPrecisionFallback(precision) {
 }
 
 function renderMaxInputCodePoints(format) {
+  const limit = format.maxInputCodePoints;
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    const problem = `spec/data/format.json has maxInputCodePoints ${JSON.stringify(limit)}.`;
+    throw new Error(`${problem} Use a positive whole number.`);
+  }
   return [
     ...doc('The most code points that parse reads. Longer input fails before normalize runs.'),
-    `export const MAX_INPUT_CODE_POINTS: number = ${format.maxInputCodePoints};`,
+    `export const MAX_INPUT_CODE_POINTS: number = ${limit};`,
   ];
 }
 

@@ -30,7 +30,9 @@ function expected(vector: ParseExpect): ParseResult {
   return { ok: true, value: { compact, canonical, display, precision, segments } };
 }
 
-describe.each(['parse', 'parse-segments', 'parse-states'])('parse with %s.json', (file) => {
+const PARSE_FILES = ['parse', 'parse-segments', 'parse-states'] as const;
+
+describe.each(PARSE_FILES)('parse with %s.json', (file) => {
   const cases = loadVectors<string, ParseExpect>(file, 'parse');
 
   it.each(cases)('$id $description', (vector) => {
