@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+name: mutation
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    # A run takes a few minutes. The limit stops a run that hangs.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # Stryker runs through its command runner, in place (see packages/core/stryker.config.json).
+      # The Stryker Vitest runner does not match Vitest 5 test names. Its filter then selects no
+      # test, and almost every mutant survives. Return to the Vitest runner when Stryker supports
+      # Vitest 5.
+      - run: pnpm --filter @gatepost/core run mutation
