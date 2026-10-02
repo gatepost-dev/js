@@ -8,4 +8,14 @@
  *
  * @packageDocumentation
  */
+export { precisionForAccuracy } from './precision.js';
+export { stateName } from './state-name.js';
+export type {
+  ParseError,
+  ParseErrorCode,
+  ParseResult,
+  Postcode,
+  Precision,
+  Segments,
+} from './types.js';
 export { SPEC_VERSION } from './version.js';

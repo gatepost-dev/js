@@ -7,14 +7,16 @@
     "node": "^22.22.2 || >=24.15.0"
   },
   "scripts": {
-    "check": "run-s format:check lint typecheck test tells context:check",
+    "check": "run-s format:check lint typecheck test tells context:check generate:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "tells": "python3 spec/scripts/check-tells",
-    "context:check": "cmp CONTEXT.md spec/CONTEXT.md"
+    "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
+    "generate": "node scripts/generate-spec-data.mjs",
+    "generate:check": "node scripts/generate-spec-data.mjs --check"
   },
   "packageManager": "pnpm@12.8.1",
   "devDependencies": {
