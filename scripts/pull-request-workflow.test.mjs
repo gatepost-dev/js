@@ -50,6 +50,18 @@ describe('the workflow that builds the squash message', () => {
     );
   });
 
+  // The pattern starts at the line, so that a step turned into a comment does not count.
+  it('lints the message with commitlint and asks for a change file', () => {
+    for (const { name, text } of builders) {
+      assert.match(text, /^ +- run: pnpm exec commitlint --edit /m, `${name} must run commitlint.`);
+      assert.match(
+        text,
+        /^ +- run: pnpm exec changeset status /m,
+        `${name} must run changeset status.`,
+      );
+    }
+  });
+
   it('cancels the older run of a pull request when a newer one starts', () => {
     for (const { name, text } of builders) {
       assert.match(text, /^concurrency:\n {2}group: .*github\.event\.pull_request\.number/m, name);
