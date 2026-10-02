@@ -16,7 +16,12 @@ export interface Example {
 // of `strictEqual`, so the docs cannot show a result that the code does not give. A guard such
 // as `if (parsed.ok)` can skip such a call. So the module counts the calls that run, and the test
 // compares that count with the number of result lines.
-const SHOWN_RESULT = /^(\s*)(.+);\s*\/\/ ('[^']*'|-?\d+(?:\.\d+)?|true|false|null)$/gm;
+const RESULT_LINE =
+  /^(\s*)(.+);\s*\/\/ ('[^']*'|"[^"]*"|-?\d+(?:\.\d+)?|true|false|null|undefined)$/;
+const SHOWN_RESULT = new RegExp(RESULT_LINE.source, 'gm');
+// A comment that starts like a value, but that RESULT_LINE cannot read, would leave its result
+// unchecked. The test fails on such a line, so that the author writes a form that it reads.
+const VALUE_COMMENT = /;\s*\/\/ (['"`[{-]|\d|(?:true|false|null|undefined|NaN|Infinity)\b)/;
 
 const COUNTING_PREAMBLE = [
   "import { strictEqual as assertEqual } from 'node:assert/strict';",
@@ -48,14 +53,42 @@ function withImports(source: string): string {
     return source;
   }
   const used = Object.keys(core).filter((name) => new RegExp(`\\b${name}\\b`).test(source));
-  return `import { ${used.join(', ')} } from '@gatepost/core';\n${source}`;
+  return used.length === 0
+    ? source
+    : `import { ${used.join(', ')} } from '@gatepost/core';\n${source}`;
 }
 
-function toModule(example: string): string {
+/**
+ * Turns an example into a module that checks each result that the example shows.
+ *
+ * @param example - The code of the example.
+ * @returns The text of a TypeScript module that imports the package from its source.
+ */
+export function toModule(example: string): string {
   const source = withImports(example)
     .replaceAll("'@gatepost/core'", "'../../src/index.js'")
     .replace(SHOWN_RESULT, '$1strictEqual($2, $3);');
   return `${COUNTING_PREAMBLE}\n${source}`;
+}
+
+/**
+ * Counts the lines of an example that show a result in a form that the test can compare.
+ *
+ * @param source - The code of the example.
+ * @returns The number of lines.
+ */
+export function countShownResults(source: string): number {
+  return Array.from(source.matchAll(SHOWN_RESULT)).length;
+}
+
+/**
+ * Finds the lines of an example that seem to show a result in a form that the test cannot read.
+ *
+ * @param source - The code of the example.
+ * @returns The lines. A line that shows no result, or a readable one, is not in the list.
+ */
+export function unreadableResults(source: string): readonly string[] {
+  return source.split('\n').filter((line) => VALUE_COMMENT.test(line) && !RESULT_LINE.test(line));
 }
 
 /**
@@ -83,12 +116,16 @@ export function runExamples(examples: readonly Example[]): void {
   it.each(examples.map((example, index) => ({ ...example, index })))(
     'runs $name and finds each result that it shows',
     async ({ name, source, index }) => {
+      const unreadable = unreadableResults(source);
+      expect(unreadable, `${name} shows a result in a form that this test cannot read.`).toEqual(
+        [],
+      );
       const file = join(folder, `example-${String(index)}.ts`);
       writeFileSync(file, toModule(source));
       const { checkedResults } = (await import(pathToFileURL(file).href)) as {
         checkedResults: number;
       };
-      const shownResults = Array.from(source.matchAll(SHOWN_RESULT)).length;
+      const shownResults = countShownResults(source);
       const compared = `${String(checkedResults)} of ${String(shownResults)} results`;
       expect(checkedResults, `${name} compared ${compared}.`).toBe(shownResults);
     },

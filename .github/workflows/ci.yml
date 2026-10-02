@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -26,12 +26,17 @@ jobs:
         with:
           # The oldest Python that the scripts in the spec repo support.
           python-version: '3.11'
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # pnpm check starts reuse and zizmor with uvx. The tools are small, and no lock file
+          # keys a cache.
+          enable-cache: false
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
   node-22:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,7 +52,7 @@ jobs:
 
   commits:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       BASE: ${{ github.event.pull_request.base.sha }}
@@ -72,8 +77,36 @@ jobs:
             python3 spec/scripts/check-tells --commit-msg "$RUNNER_TEMP/message"
           done
 
+  # Squash merges write the message of main from the title and the body of the pull request, so
+  # this job lints that message. It also asks for a change file (GIT-7).
+  pull-request:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # changeset status compares the branch with origin/main.
+          fetch-depth: 0
+          submodules: true
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Build the message that the squash merge writes
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/squash-message.mjs > "$RUNNER_TEMP/message"
+      - run: pnpm exec commitlint --edit "$RUNNER_TEMP/message"
+      - run: python3 spec/scripts/check-tells --commit-msg "$RUNNER_TEMP/message"
+      - run: pnpm exec changeset status --since=origin/main
+
   licences:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,7 +115,7 @@ jobs:
       - uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5 # v6.0.0
 
   secrets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

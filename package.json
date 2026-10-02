@@ -10,7 +10,8 @@
     "check": "run-s check:source check:build check:policy",
     "check:source": "run-s generate:check format:check lint typecheck test",
     "check:build": "run-s build package:check",
-    "check:policy": "run-s tells context:check licences:check licence-files:check",
+    "check:policy": "run-s tells context:check check:licences workflows:check",
+    "check:licences": "run-s licences:check licence-files:check reuse:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
@@ -22,6 +23,8 @@
     "context:check": "cmp CONTEXT.md spec/CONTEXT.md",
     "licences:check": "node scripts/check-licences.mjs",
     "licence-files:check": "cmp LICENSE packages/core/LICENSE && cmp NOTICE packages/core/NOTICE",
+    "reuse:check": "uvx --with charset-normalizer==3.5.2 reuse@6.2.0 lint",
+    "workflows:check": "uvx zizmor@1.30.1 --offline .github/workflows",
     "generate": "node scripts/generate-spec-data.mjs",
     "generate:check": "node scripts/generate-spec-data.mjs --check"
   },

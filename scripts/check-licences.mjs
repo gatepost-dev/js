@@ -4,6 +4,7 @@
 // exception. The script reads `pnpm licenses list --json`, so run `pnpm install` first.
 import { execFileSync } from 'node:child_process';
 import process from 'node:process';
+import { isMainModule } from './main-module.mjs';
 
 // The first six licences are the ones that the standard names. The last three are permissive
 // too, and dev tools in the tree use them.
@@ -96,26 +97,35 @@ function cannotListLicences(report) {
   return packages.length === 0 || Object.keys(report).every((licence) => licence === 'Unknown');
 }
 
+// Returns the report, or the problem that stopped pnpm from giving one.
 function readReport() {
   try {
     const output = execFileSync('pnpm', ['licenses', 'list', '--json'], {
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'ignore'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    return JSON.parse(output);
+    return { report: JSON.parse(output) };
   } catch (error) {
-    // The call fails with the exit code of pnpm, or with ENOENT when pnpm is missing. Both mean
-    // that pnpm cannot list the licences, and an empty report says so.
-    if (typeof error.status === 'number' || error.code === 'ENOENT') {
-      return {};
+    // The call fails with the exit code of pnpm, or with ENOENT when pnpm is missing.
+    if (error.code === 'ENOENT') {
+      return { problem: 'Cannot start pnpm. Enable it with corepack enable.' };
+    }
+    if (typeof error.status === 'number') {
+      const exit = `pnpm licenses list exited with the code ${error.status}.`;
+      return { problem: [exit, error.stderr.trim()].filter((line) => line !== '').join('\n') };
     }
     throw error;
   }
 }
 
 function main() {
-  const report = readReport();
+  const { report, problem } = readReport();
+  if (problem !== undefined) {
+    process.stderr.write(`${problem}\n`);
+    process.exitCode = 1;
+    return;
+  }
   if (cannotListLicences(report)) {
     process.stderr.write('pnpm cannot list the licences. Run pnpm install first.\n');
     process.exitCode = 1;
@@ -132,6 +142,6 @@ function main() {
   process.stdout.write(`Checked ${count} packages. Each has an allowed licence or an exception.\n`);
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url)) {
   main();
 }

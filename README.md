@@ -22,9 +22,15 @@ You need Node 24, `corepack enable`, Python 3.11 or later and `uv`.
     pnpm check
 
 `pnpm check` also builds the package. Then it runs publint, attw, size-limit and API Extractor on
-the result, and it checks the licence of each dependency. After a change to the public API, run
+the result, and it starts the built package once. It checks the licence of each dependency and of
+each file, and it checks the workflows with zizmor. After a change to the public API, run
 `pnpm --filter @gatepost/core run api:update` and commit `packages/core/etc/core.api.md`. For each
-user-visible change, add a change file with `pnpm changeset`.
+change to a package, add a change file with `pnpm changeset`, or with `pnpm changeset --empty` when
+the change needs no release. The pull request job fails without a change file.
+
+A squash merge writes the commit message from the title and the body of the pull request. The same
+job lints that message, so write the title as a Conventional Commits header with a scope, and end
+the body with your `Signed-off-by` line.
 
 The mutation run (`pnpm --filter @gatepost/core run mutation`) uses Stryker's command runner in
 place, because the Stryker Vitest runner does not match Vitest 5 test names. After a run that

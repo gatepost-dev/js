@@ -43,7 +43,9 @@
     "test": "vitest run --coverage",
     "mutation": "stryker run",
     "build": "tsdown",
-    "package:check": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
+    "package:check": "run-s package:lint package:smoke",
+    "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
+    "package:smoke": "node scripts/smoke.mjs",
     "api:update": "api-extractor run --local"
   }
 }

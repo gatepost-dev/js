@@ -8,9 +8,16 @@ import jsdoc from 'eslint-plugin-jsdoc';
 import tseslint from 'typescript-eslint';
 
 const message = 'Core code runs in every runtime. Use no Node APIs (CS-2).';
-// A constant, because the selector would pass 100 columns inside the rule options (TELL-1).
+// A dynamic import can name a Node module with a string, so only a relative file passes.
+const dynamicImportMessage = `${message} A dynamic import may name only a relative file.`;
+const dynamicImport = 'ImportExpression:not([source.value=/^\\./])';
+const nodeGlobals = ['process', 'Buffer', '__dirname', '__filename', 'global'];
+const bannedSyntax = ['TSEnumDeclaration', 'TSModuleDeclaration'];
+// Constants, because a selector would pass 100 columns inside the rule options (TELL-1).
 const exportedArrowFunction =
   'ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression';
+const exportedFunctionExpression =
+  'ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression';
 
 export default defineConfig(
   {
@@ -39,7 +46,7 @@ export default defineConfig(
       'no-empty': ['error', { allowEmptyCatch: false }],
       'no-nested-ternary': 'error',
       '@typescript-eslint/require-await': 'error',
-      'no-restricted-syntax': ['error', 'TSEnumDeclaration', 'TSModuleDeclaration'],
+      'no-restricted-syntax': ['error', ...bannedSyntax],
       'no-restricted-exports': [
         'error',
         {
@@ -74,7 +81,11 @@ export default defineConfig(
       'jsdoc/require-example': [
         'error',
         {
-          contexts: ['ExportNamedDeclaration > FunctionDeclaration', exportedArrowFunction],
+          contexts: [
+            'ExportNamedDeclaration > FunctionDeclaration',
+            exportedArrowFunction,
+            exportedFunctionExpression,
+          ],
           exemptedBy: ['internal'],
         },
       ],
@@ -88,17 +99,23 @@ export default defineConfig(
       'no-restricted-imports': [
         'error',
         {
-          paths: builtinModules.map((name) => ({ name, message })),
+          // The pattern covers each name with the prefix, such as node:test. A path for it too
+          // would report one import twice.
+          paths: builtinModules
+            .filter((name) => !name.startsWith('node:'))
+            .map((name) => ({ name, message })),
           patterns: [{ group: ['node:*'], message }],
         },
       ],
-      'no-restricted-globals': [
+      'no-restricted-globals': ['error', ...nodeGlobals.map((name) => ({ name, message }))],
+      'no-restricted-properties': [
         'error',
-        { name: 'process', message },
-        { name: 'Buffer', message },
-        { name: '__dirname', message },
-        { name: '__filename', message },
-        { name: 'global', message },
+        ...nodeGlobals.map((property) => ({ object: 'globalThis', property, message })),
+      ],
+      'no-restricted-syntax': [
+        'error',
+        ...bannedSyntax,
+        { selector: dynamicImport, message: dynamicImportMessage },
       ],
     },
   },
