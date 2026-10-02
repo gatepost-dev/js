@@ -127,6 +127,13 @@ function renderPrecisionFallback(precision) {
   ];
 }
 
+function renderMaxInputCodePoints(format) {
+  return [
+    ...doc('The most code points that parse reads. Longer input fails before normalize runs.'),
+    `export const MAX_INPUT_CODE_POINTS: number = ${format.maxInputCodePoints};`,
+  ];
+}
+
 function renderSeparators(format) {
   const separators = format.separators.map(escapeCodePoint).join('');
   return [
@@ -175,6 +182,7 @@ function render() {
     renderSegmentBounds(format),
     renderPrecisionThresholds(precision),
     renderPrecisionFallback(precision),
+    renderMaxInputCodePoints(format),
     renderSeparators(format),
     renderLegacy(format),
     renderDigitFixes(format),

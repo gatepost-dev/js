@@ -8,7 +8,9 @@ import { SEPARATORS } from './spec-data.js';
  * the spec lists, and makes the ASCII letters a to z upper case. The separators are white space
  * (including tabs and line breaks), hyphens and dashes, the full stop, and some zero-width
  * characters. It keeps every other character, such as the right-to-left override U+202E or a
- * letter with an accent. It does not check the result.
+ * letter with an accent. It does not check the result. It does not limit the length of its
+ * input. For text from an untrusted source, call parse, which rejects long input before it
+ * normalises.
  *
  * @param input - Text from a user.
  * @returns The cleaned text.

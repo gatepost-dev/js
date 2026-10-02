@@ -101,6 +101,13 @@ export const PRECISION_THRESHOLDS: readonly PrecisionThreshold[] = [
 export const PRECISION_FALLBACK: Precision = 'lga';
 
 /**
+ * The most code points that parse reads. Longer input fails before normalize runs.
+ *
+ * @internal
+ */
+export const MAX_INPUT_CODE_POINTS: number = 64;
+
+/**
  * Characters that normalize removes. Use it only with replace, because of flag g.
  *
  * @internal

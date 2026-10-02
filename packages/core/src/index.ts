@@ -9,6 +9,7 @@
  * @packageDocumentation
  */
 export { normalize } from './normalize.js';
+export { parse } from './parse.js';
 export { precisionForAccuracy } from './precision.js';
 export { stateName } from './state-name.js';
 export type {
