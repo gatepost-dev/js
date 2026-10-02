@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
 import { readFileSync } from 'node:fs';
+import { parse, type Postcode } from '../src/index.js';
 
 /** One shared test case from spec/vectors. */
 export interface VectorCase<Input, Expect> {
@@ -43,4 +44,18 @@ export function loadVectors<Input, Expect>(
     throw new Error(`${file}.json has no cases.`);
   }
   return vectorFile.cases;
+}
+
+/**
+ * Parses a canonical code from a vector, with partial codes allowed.
+ *
+ * @param canonical - A code such as `EK-01-A03`.
+ * @returns The postcode.
+ */
+export function parseVectorCode(canonical: string): Postcode {
+  const result = parse(canonical, { allowPartial: true });
+  if (!result.ok) {
+    throw new Error(`The vector code ${canonical} does not parse: ${result.error.code}.`);
+  }
+  return result.value;
 }

@@ -8,9 +8,12 @@
  *
  * @packageDocumentation
  */
+export { contains, parent, truncate } from './hierarchy.js';
+export { isLegacy } from './legacy.js';
 export { normalize } from './normalize.js';
 export { parse } from './parse.js';
 export { precisionForAccuracy } from './precision.js';
+export { redact } from './redact.js';
 export { stateName } from './state-name.js';
 export type {
   ParseError,

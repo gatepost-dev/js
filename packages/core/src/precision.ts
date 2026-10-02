@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import { PRECISION_FALLBACK, PRECISION_THRESHOLDS } from './spec-data.js';
+import { PRECISION_FALLBACK, PRECISION_ORDER, PRECISION_THRESHOLDS } from './spec-data.js';
 import type { Precision } from './types.js';
 
 /**
@@ -24,4 +24,16 @@ export function precisionForAccuracy(accuracyM: number | null): Precision {
   }
   const threshold = PRECISION_THRESHOLDS.find((row) => accuracyM <= row.maxAccuracyM);
   return threshold === undefined ? PRECISION_FALLBACK : threshold.precision;
+}
+
+/**
+ * Returns the position of a precision, counted from the least precise. A state is 0, and a
+ * unit is 4.
+ *
+ * @param precision - A precision.
+ * @returns Its position in PRECISION_ORDER.
+ * @internal
+ */
+export function precisionRank(precision: Precision): number {
+  return PRECISION_ORDER.indexOf(precision);
 }
