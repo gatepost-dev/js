@@ -16,6 +16,11 @@ You need Node 24, `corepack enable`, Python 3.11 or later and `uv`.
     pnpm install
     pnpm check
 
+The mutation run (`pnpm --filter @gatepost/core run mutation`) uses Stryker's command runner in
+place, because the Stryker Vitest runner does not match Vitest 5 test names. After a run that
+stops hard, run `git checkout packages/core && rm -rf packages/core/.stryker-tmp`, which also
+discards your uncommitted changes in that folder.
+
 Read `CONTRIBUTING.md` and `CODING_STANDARDS.md` before you open a pull request.
 
 ## Licence

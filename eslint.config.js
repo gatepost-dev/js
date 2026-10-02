@@ -13,7 +13,16 @@ const exportedArrowFunction =
   'ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression';
 
 export default defineConfig(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/temp/**', 'spec/**', '**/spec-data.ts'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/temp/**',
+      '**/.stryker-tmp/**',
+      'spec/**',
+      '**/spec-data.ts',
+    ],
+  },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
