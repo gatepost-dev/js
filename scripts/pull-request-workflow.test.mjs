@@ -34,6 +34,15 @@ describe('the workflow that builds the squash message', () => {
     }
   });
 
+  // The commit mode takes a body line that starts with # for a git comment, and it checks neither
+  // the sign-off nor the text of the pull request template. The squash mode does all three.
+  it('checks the message in the squash mode of check-tells, and not in the commit mode', () => {
+    for (const { name, text } of builders) {
+      assert.match(text, /check-tells --squash-msg /, `${name} must run check-tells --squash-msg.`);
+      assert.doesNotMatch(text, /check-tells --commit-msg/, `${name} must not use --commit-msg.`);
+    }
+  });
+
   it('is not ci.yml, so that an edit does not start the other jobs', () => {
     assert.deepEqual(
       builders.map(({ name }) => name).filter((name) => name === 'ci.yml'),

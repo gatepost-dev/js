@@ -6,7 +6,7 @@ This repo is part of Gatepost, unofficial open-source developer tools for Nigeri
 
 - `CODING_STANDARDS.md` and the two files it names hold the rules. Cite rule IDs, such as `API-3`, in reviews and commit bodies.
 - `CONTEXT.md` is the glossary. Name things with its terms in code, tests, docs and commits.
-- `spec/` holds the interfaces and the vectors. The spec wins over code and over these docs.
+- `spec/` holds the grammar, with its Interface section, and the vectors. The spec wins over code and over these docs.
 
 ## Rules that no config file shows
 

@@ -45,16 +45,20 @@ function lintMessage(message) {
   return { status, output: stdout + stderr };
 }
 
-function checkTells(message) {
+function runCheckTells(mode, message) {
   const folder = mkdtempSync(join(tmpdir(), 'squash-message-'));
   folders.push(folder);
   const file = join(folder, 'message');
   writeFileSync(file, message);
-  const { status, stdout, stderr } = spawnSync('python3', [CHECK_TELLS, '--commit-msg', file], {
+  const { status, stdout, stderr } = spawnSync('python3', [CHECK_TELLS, mode, file], {
     encoding: 'utf8',
   });
   return { status, output: stdout + stderr };
 }
+
+// The commits job runs the commit mode on each commit. The pull request job runs the squash mode.
+const checkCommitMessage = (message) => runCheckTells('--commit-msg', message);
+const checkSquashMessage = (message) => runCheckTells('--squash-msg', message);
 
 function runScript(env, script = SCRIPT) {
   const { status, stdout, stderr } = spawnSync(process.execPath, [script], {
@@ -122,24 +126,10 @@ describe('buildSquashMessage', () => {
     assert.equal(message, `${TITLE} (#12)\n\n${body}\n`);
   });
 
-  it('looks for the template address inside a comment too', () => {
-    const body = `<!-- Signed-off-by: Your Name <you@example.com> -->\n\n${SIGN_OFF}`;
-    assert.throws(() => buildSquashMessage({ title: TITLE, number: 12, body }), /template address/);
-  });
-
-  for (const address of ['you@example.com', 'You@Example.COM']) {
-    it(`rejects a body that still holds the template address ${address}`, () => {
-      const body = `Two sentences.\n\nCloses #\n\nSigned-off-by: Your Name <${address}>`;
-      assert.throws(
-        () => buildSquashMessage({ title: TITLE, number: 12, body }),
-        /still holds the template address you@example\.com/i,
-      );
-    });
-  }
-
-  it('accepts another address at example.com', () => {
-    const body = 'Signed-off-by: A Contributor <contributor@example.com>';
-    assert.ok(buildSquashMessage({ title: TITLE, number: 12, body }).endsWith(`${body}\n`));
+  it('leaves the placeholder of the template for check-tells to find', () => {
+    const body = 'Signed-off-by: Your Name <you@example.com>';
+    const message = buildSquashMessage({ title: TITLE, number: 12, body });
+    assert.equal(message, `${TITLE} (#12)\n\n${body}\n`);
   });
 });
 
@@ -175,18 +165,55 @@ describe('the squash message and commitlint', () => {
   });
 });
 
-describe('the squash message and check-tells', () => {
+describe('the squash message and the squash mode of check-tells', () => {
+  const build = (body) => buildSquashMessage({ title: TITLE, number: 12, body });
+  const TEMPLATE_PARAGRAPH =
+    'Write two or three sentences of plain prose that say what this change does and why.';
+
   it('passes for a signed pull request', () => {
-    const message = buildSquashMessage({ title: TITLE, number: 12, body: BODY });
-    assert.deepEqual(checkTells(message), { status: 0, output: '' });
+    assert.deepEqual(checkSquashMessage(build(BODY)), { status: 0, output: '' });
   });
 
   it('finds a non-ASCII character in a comment before the sign-off line', () => {
     const dash = String.fromCodePoint(0x2013);
     const body = `<!-- A dash ${dash} that a reader of the page does not see. -->\n\n${BODY}`;
-    const { status, output } = checkTells(buildSquashMessage({ title: TITLE, number: 12, body }));
+    const { status, output } = checkSquashMessage(build(body));
     assert.equal(status, 1);
     assert.ok(output.includes('TELL-14'), output);
+  });
+
+  // A commit message takes such a line for a git comment. A squash message has no comments.
+  it('finds a non-ASCII character in a body line that starts with #', () => {
+    const dash = String.fromCodePoint(0x2013);
+    const { status, output } = checkSquashMessage(
+      build(`# A dash ${dash} in a heading\n\n${BODY}`),
+    );
+    assert.equal(status, 1);
+    assert.ok(output.includes('TELL-14'), output);
+  });
+
+  it('finds the placeholder address of the template in the sign-off line', () => {
+    const { status, output } = checkSquashMessage(
+      build('Two sentences.\n\nSigned-off-by: Your Name <you@example.com>'),
+    );
+    assert.equal(status, 1);
+    assert.ok(output.includes('GIT-2'), output);
+  });
+
+  it('finds a sign-off line with no address, which commitlint accepts', () => {
+    const message = build('Two sentences.\n\nSigned-off-by: A Contributor');
+    assert.equal(lintMessage(message).status, 0);
+    const { status, output } = checkSquashMessage(message);
+    assert.equal(status, 1);
+    assert.ok(output.includes('GIT-2'), output);
+  });
+
+  it('finds the paragraph and the Closes line that the template leaves for the author', () => {
+    const { status, output } = checkSquashMessage(
+      build(`${TEMPLATE_PARAGRAPH}\n\nCloses #\n\n${SIGN_OFF}`),
+    );
+    assert.equal(status, 1);
+    assert.equal(output.match(/TELL-18/g)?.length, 2, output);
   });
 });
 
@@ -212,14 +239,6 @@ describe('squash-message.mjs as a command', () => {
     const link = join(folder, 'link.mjs');
     symlinkSync(SCRIPT, link);
     assert.equal(runScript(env, link).stdout, `${TITLE} (#12)\n\n${BODY}\n`);
-  });
-
-  it('fails and prints nothing for a body with the template address', () => {
-    const body = 'Signed-off-by: Your Name <you@example.com>';
-    const { status, stdout, stderr } = runScript({ ...env, PR_BODY: body });
-    assert.equal(status, 1);
-    assert.equal(stdout, '');
-    assert.match(stderr, /still holds the template address you@example\.com/);
   });
 
   it('fails when the title or the number is missing', () => {
@@ -259,7 +278,7 @@ describe('the Renovate config', () => {
   it('writes a pull request body that passes the checks of the pull request job', () => {
     const message = buildSquashMessage({ title, number: 25, body: renderBody() });
     assert.deepEqual(lintMessage(message), { status: 0, output: '' });
-    assert.deepEqual(checkTells(message), { status: 0, output: '' });
+    assert.deepEqual(checkSquashMessage(message), { status: 0, output: '' });
   });
 
   it('ends the pull request body with the sign-off of the app that commits', () => {
@@ -271,7 +290,7 @@ describe('the Renovate config', () => {
     // The preset adds the author of the commit as a trailer.
     const message = `${title}\n\nSigned-off-by: ${RENOVATE_IDENTITY}\n`;
     assert.deepEqual(lintMessage(message), { status: 0, output: '' });
-    assert.deepEqual(checkTells(message), { status: 0, output: '' });
+    assert.deepEqual(checkCommitMessage(message), { status: 0, output: '' });
   });
 
   it('keeps the title of each dependency update, with its suffix, within the header limit', () => {
@@ -282,8 +301,9 @@ describe('the Renovate config', () => {
     });
     assert.ok(names.length > 0, 'The test found no dependency.');
     for (const name of names) {
-      const rule = config.packageRules?.find(({ matchPackageNames }) =>
-        matchPackageNames.includes(name),
+      const rule = config.packageRules?.findLast(
+        ({ matchPackageNames, commitMessageTopic }) =>
+          commitMessageTopic !== undefined && matchPackageNames?.includes(name),
       );
       const topic = (rule?.commitMessageTopic ?? config.commitMessageTopic).replace(
         '{{depName}}',
@@ -292,6 +312,19 @@ describe('the Renovate config', () => {
       const type = `${config.semanticCommitType}(${config.semanticCommitScope})`;
       const header = `${type}: update ${topic} to v10.12.0 (#25)`;
       assert.ok(header.length <= limit, `${header} has ${header.length} characters, not ${limit}.`);
+    }
+  });
+
+  it('holds typescript below 7 and @types/node on its major, and gives the reason', () => {
+    const ruleFor = (name) =>
+      config.packageRules?.find(({ matchPackageNames }) => matchPackageNames?.includes(name));
+    const typescript = ruleFor('typescript');
+    const nodeTypes = ruleFor('@types/node');
+    assert.equal(typescript?.allowedVersions, '<7');
+    assert.deepEqual(nodeTypes?.matchUpdateTypes, ['major']);
+    assert.equal(nodeTypes?.enabled, false);
+    for (const rule of [typescript, nodeTypes]) {
+      assert.match(rule?.description?.join(' ') ?? '', /standards.*major update.*standards/);
     }
   });
 

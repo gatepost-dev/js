@@ -39,5 +39,5 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: node scripts/squash-message.mjs > "$RUNNER_TEMP/message"
       - run: pnpm exec commitlint --edit "$RUNNER_TEMP/message"
-      - run: python3 spec/scripts/check-tells --commit-msg "$RUNNER_TEMP/message"
+      - run: python3 spec/scripts/check-tells --squash-msg "$RUNNER_TEMP/message"
       - run: pnpm exec changeset status --since=origin/main
