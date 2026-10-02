@@ -17,11 +17,11 @@ export interface Example {
 // as `if (parsed.ok)` can skip such a call. So the module counts the calls that run, and the test
 // compares that count with the number of result lines.
 const RESULT_LINE =
-  /^(\s*)(.+);\s*\/\/ ('[^']*'|"[^"]*"|-?\d+(?:\.\d+)?|true|false|null|undefined)$/;
+  /^(\s*)(.+);\s*\/\/ *('[^']*'|"[^"]*"|-?\d+(?:\.\d+)?|true|false|null|undefined)$/;
 const SHOWN_RESULT = new RegExp(RESULT_LINE.source, 'gm');
 // A comment that starts like a value, but that RESULT_LINE cannot read, would leave its result
 // unchecked. The test fails on such a line, so that the author writes a form that it reads.
-const VALUE_COMMENT = /;\s*\/\/ (['"`[{-]|\d|(?:true|false|null|undefined|NaN|Infinity)\b)/;
+const VALUE_COMMENT = /;\s*\/\/ *(['"`[{-]|\d|(?:true|false|null|undefined|NaN|Infinity)\b)/;
 
 const COUNTING_PREAMBLE = [
   "import { strictEqual as assertEqual } from 'node:assert/strict';",

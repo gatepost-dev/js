@@ -13,6 +13,10 @@ describe('toModule', () => {
     ['x; // false', 'strictEqual(x, false);'],
     ['x; // null', 'strictEqual(x, null);'],
     ['x; // undefined', 'strictEqual(x, undefined);'],
+    ["x; //'a'", "strictEqual(x, 'a');"],
+    ['x; //false', 'strictEqual(x, false);'],
+    ['x; //   12', 'strictEqual(x, 12);'],
+    ['x;//null', 'strictEqual(x, null);'],
   ])('compares the result in %s', (line, call) => {
     expect(toModule(line)).toContain(call);
   });
@@ -46,6 +50,10 @@ describe('countShownResults', () => {
     expect(countShownResults(source)).toBe(5);
   });
 
+  it('counts a result that has no space after the slashes', () => {
+    expect(countShownResults("a; //'x'\nb; //false\nc; //-1")).toBe(3);
+  });
+
   it('does not count a comment that is not a result', () => {
     expect(countShownResults("f(); // for example 'x'\ng(); // a zero")).toBe(0);
   });
@@ -63,6 +71,9 @@ describe('unreadableResults', () => {
     'x; // Infinity',
     'x; // -Infinity',
     'x; // true or false',
+    'x; //1e3',
+    'x; //{ ok: true }',
+    'x; //NaN',
   ])('reports the line %s, because its result form is not readable', (line) => {
     expect(unreadableResults(`const y = 1;\n${line}\n`)).toEqual([line]);
   });
@@ -73,6 +84,9 @@ describe('unreadableResults', () => {
     'x; // undefined',
     'x; // a letter o where a zero belongs',
     "x; // for example 'bad_length'",
+    "x; //'a'",
+    'x; //false',
+    'x; //a letter o where a zero belongs',
     'x;',
   ])('accepts the line %s', (line) => {
     expect(unreadableResults(line)).toEqual([]);
