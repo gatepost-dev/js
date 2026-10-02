@@ -4,9 +4,11 @@ import { upperAscii } from './ascii.js';
 import { SEPARATORS } from './spec-data.js';
 
 /**
- * Cleans text that a user typed or pasted. It applies Unicode NFKC, removes spaces, dashes,
- * dots and zero-width characters, and makes ASCII letters upper case. It does not check the
- * result.
+ * Cleans text that a user typed or pasted. It applies Unicode NFKC, removes the separators that
+ * the spec lists, and makes the ASCII letters a to z upper case. The separators are white space
+ * (including tabs and line breaks), hyphens and dashes, the full stop, and some zero-width
+ * characters. It keeps every other character, such as the right-to-left override U+202E or a
+ * letter with an accent. It does not check the result.
  *
  * @param input - Text from a user.
  * @returns The cleaned text.

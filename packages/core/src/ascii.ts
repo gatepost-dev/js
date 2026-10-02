@@ -9,5 +9,5 @@
  * @internal
  */
 export function upperAscii(text: string): string {
-  return text.replace(/[a-z]/g, (letter) => letter.toUpperCase());
+  return text.replace(/[a-z]+/g, (run) => run.toUpperCase());
 }
