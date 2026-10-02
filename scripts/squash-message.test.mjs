@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { after, describe, it } from 'node:test';
 import { fileURLToPath, URL } from 'node:url';
+import commitlintConfig from '../commitlint.config.js';
 import { buildSquashMessage } from './squash-message.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -15,7 +16,12 @@ const SCRIPT = fileURLToPath(new URL('./squash-message.mjs', import.meta.url));
 const COMMITLINT = fileURLToPath(import.meta.resolve('@commitlint/cli/cli.js'));
 const CHECK_TELLS = fileURLToPath(new URL('../spec/scripts/check-tells', import.meta.url));
 const RENOVATE_CONFIG = fileURLToPath(new URL('../renovate.json', import.meta.url));
+const PACKAGE_FILES = ['../package.json', '../packages/core/package.json'].map((path) =>
+  fileURLToPath(new URL(path, import.meta.url)),
+);
 const SIGN_OFF = 'Signed-off-by: A Contributor <contributor@example.org>';
+// The name and the address that the hosted Renovate app uses as the author of its commits.
+const RENOVATE_IDENTITY = 'renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>';
 const TITLE = 'fix(core): reject a unit of 00';
 const BODY = `The unit rule needs a check.\n\n${SIGN_OFF}`;
 // Renovate ends its body with this comment. The payload holds each character of base64.
@@ -238,18 +244,86 @@ describe('the Renovate config', () => {
     assert.equal(config.semanticCommitScope, 'deps');
   });
 
+  it('signs off each commit with the preset that Renovate ships for it', () => {
+    assert.ok(config.extends.includes(':gitSignOff'));
+  });
+
+  // Renovate renders the template with the sections of the body. Only the header holds text here.
+  // Renovate also ends each body with a hidden comment.
+  function renderBody() {
+    const text = config.prBodyTemplate.replace('{{{header}}}', `${config.prHeader}\n\n`).trim();
+    assert.ok(!text.includes('{{'), 'The test renders only the section header.');
+    return `${text}\n${RENOVATE_COMMENT}\n`;
+  }
+
   it('writes a pull request body that passes the checks of the pull request job', () => {
-    assert.ok(!config.prBodyTemplate.includes('{{'), 'The test reads the template as the body.');
-    // Renovate ends each pull request body with a hidden comment.
-    const body = `${config.prBodyTemplate}\n${RENOVATE_COMMENT}\n`;
-    const message = buildSquashMessage({ title, number: 25, body });
+    const message = buildSquashMessage({ title, number: 25, body: renderBody() });
     assert.deepEqual(lintMessage(message), { status: 0, output: '' });
     assert.deepEqual(checkTells(message), { status: 0, output: '' });
   });
 
+  it('ends the pull request body with the sign-off of the app that commits', () => {
+    assert.equal(config.prHeader, `Signed-off-by: ${RENOVATE_IDENTITY}`);
+    assert.ok(config.prBodyTemplate.endsWith('{{{header}}}'));
+  });
+
   it('writes a commit message that passes the checks of each commit', () => {
-    const message = `${title}\n\n${config.commitBody}\n`;
+    // The preset adds the author of the commit as a trailer.
+    const message = `${title}\n\nSigned-off-by: ${RENOVATE_IDENTITY}\n`;
     assert.deepEqual(lintMessage(message), { status: 0, output: '' });
     assert.deepEqual(checkTells(message), { status: 0, output: '' });
+  });
+
+  it('keeps the title of each dependency update, with its suffix, within the header limit', () => {
+    const limit = commitlintConfig.rules['header-max-length'][2];
+    const names = PACKAGE_FILES.flatMap((file) => {
+      const { dependencies, devDependencies } = JSON.parse(readFileSync(file, 'utf8'));
+      return [...Object.keys(dependencies ?? {}), ...Object.keys(devDependencies ?? {})];
+    });
+    assert.ok(names.length > 0, 'The test found no dependency.');
+    for (const name of names) {
+      const rule = config.packageRules?.find(({ matchPackageNames }) =>
+        matchPackageNames.includes(name),
+      );
+      const topic = (rule?.commitMessageTopic ?? config.commitMessageTopic).replace(
+        '{{depName}}',
+        name,
+      );
+      const type = `${config.semanticCommitType}(${config.semanticCommitScope})`;
+      const header = `${type}: update ${topic} to v10.12.0 (#25)`;
+      assert.ok(header.length <= limit, `${header} has ${header.length} characters, not ${limit}.`);
+    }
+  });
+
+  // Renovate applies each match string to the whole file, and each match is one dependency.
+  function findPins(text) {
+    return (config.customManagers ?? []).flatMap(({ matchStrings }) =>
+      matchStrings.flatMap((pattern) =>
+        Array.from(text.matchAll(new RegExp(pattern, 'g')), ({ groups }) => groups),
+      ),
+    );
+  }
+
+  it('finds the tools that scripts start with uvx, and their whole versions', () => {
+    const found = findPins(readFileSync(PACKAGE_FILES[0], 'utf8'));
+    assert.deepEqual(found.map(({ depName }) => depName).toSorted(), [
+      'charset-normalizer',
+      'reuse',
+      'zizmor',
+    ]);
+    for (const { depName, currentValue } of found) {
+      assert.match(currentValue, /^\d+\.\d+\.\d+$/, `The version of ${depName} is not whole.`);
+    }
+    assert.ok(
+      config.customManagers.every(({ datasourceTemplate }) => datasourceTemplate === 'pypi'),
+    );
+  });
+
+  it('stops a version at the end of the script string, and not after the quote', () => {
+    const scripts = '"one": "uvx --with extra==4.5.6 tool@1.2.3", "two": "uvx other@7.8.9"';
+    const found = findPins(scripts).map(
+      ({ depName, currentValue }) => `${depName} ${currentValue}`,
+    );
+    assert.deepEqual(found.toSorted(), ['extra 4.5.6', 'other 7.8.9', 'tool 1.2.3']);
   });
 });

@@ -1,10 +1,32 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["schedule:weekly", "helpers:pinGitHubActionDigests"],
+  "description": [
+    "Each pull request body ends with the sign-off line that the pull request job needs.",
+    "prHeader holds the line because a JSON string cannot wrap, and the template ends with it."
+  ],
+  "extends": ["schedule:weekly", "helpers:pinGitHubActionDigests", ":gitSignOff"],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "commitMessageTopic": "{{depName}}",
-  "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
-  "prBodyTemplate": "Weekly dependency update.\n\nSigned-off-by: Renovate Bot <bot@renovateapp.com>"
+  "customManagers": [
+    {
+      "description": "Pins of the uvx tools in the scripts of package.json",
+      "customType": "regex",
+      "managerFilePatterns": ["/^package\\.json$/"],
+      "matchStrings": [
+        "uvx (?:--with \\S+ )*(?<depName>[A-Za-z0-9][A-Za-z0-9._-]*)@(?<currentValue>[^\\s\"]+)",
+        "--with (?<depName>[A-Za-z0-9][A-Za-z0-9._-]*)==(?<currentValue>[^\\s\"]+)"
+      ],
+      "datasourceTemplate": "pypi"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["@eslint-community/eslint-plugin-eslint-comments"],
+      "commitMessageTopic": "eslint-comments plugin"
+    }
+  ],
+  "prHeader": "Signed-off-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>",
+  "prBodyTemplate": "Weekly dependency update.\n\n{{{header}}}"
 }
