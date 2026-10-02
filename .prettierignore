@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+spec
+**/dist
+**/coverage
+**/temp
+**/etc/*.api.md
+**/spec-data.ts
+**/CHANGELOG.md

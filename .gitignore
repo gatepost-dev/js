@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+node_modules/
+dist/
+coverage/
+temp/
+reports/
+.stryker-tmp/
+*.tsbuildinfo

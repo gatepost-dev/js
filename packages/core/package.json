@@ -1,0 +1,30 @@
+{
+  "name": "@gatepost/core",
+  "version": "0.0.0",
+  "description": "Unofficial. Not made or endorsed by NIPOST. Parse Nigerian postcodes offline.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "nigeria",
+    "postcode",
+    "address",
+    "nipost"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage"
+  }
+}
