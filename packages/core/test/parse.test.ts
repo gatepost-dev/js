@@ -29,11 +29,25 @@ function expected(vector: ParseExpect): ParseResult {
   return { ok: true, value: { compact, canonical, display, precision, segments } };
 }
 
-describe.each(['parse', 'parse-states'])('parse with %s.json', (file) => {
+describe.each(['parse', 'parse-segments', 'parse-states'])('parse with %s.json', (file) => {
   const cases = loadVectors<string, ParseExpect>(file, 'parse');
 
   it.each(cases)('$id $description', (vector) => {
     const options = vector.options as { readonly allowPartial?: boolean };
     expect(parse(vector.input, options)).toEqual(expected(vector.expect));
+  });
+});
+
+describe('parse results', () => {
+  it('freezes each object in a success and in a failure', () => {
+    const success = parse('EK01A03FK01');
+    const failure = parse('not a postcode');
+    expect({
+      success: Object.isFrozen(success),
+      postcode: success.ok && Object.isFrozen(success.value),
+      segments: success.ok && Object.isFrozen(success.value.segments),
+      failure: Object.isFrozen(failure),
+      error: !failure.ok && Object.isFrozen(failure.error),
+    }).toEqual({ success: true, postcode: true, segments: true, failure: true, error: true });
   });
 });

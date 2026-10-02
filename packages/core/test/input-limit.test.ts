@@ -8,7 +8,8 @@ import { MAX_INPUT_CODE_POINTS } from '../src/spec-data.js';
 const BEYOND_BMP = String.fromCodePoint(0x1d404);
 const LONE_SURROGATE = String.fromCodePoint(0xd83d);
 // A family emoji: 7 code points that show as 1 grapheme cluster.
-const FAMILY = String.fromCodePoint(0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467, 0x200d, 0x1f466);
+const FAMILY_CODE_POINTS = [0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467, 0x200d, 0x1f466];
+const FAMILY = String.fromCodePoint(...FAMILY_CODE_POINTS);
 
 const SINGLE_CODE_POINTS = [
   { description: 'letters', codePoint: 'A' },
@@ -26,7 +27,8 @@ describe('isOverInputLimit', () => {
   );
 
   it('counts the code points of an emoji sequence, not its grapheme clusters', () => {
-    expect(isOverInputLimit(FAMILY.repeat(9))).toBe(false);
-    expect(isOverInputLimit(FAMILY.repeat(10))).toBe(true);
+    const familiesInLimit = Math.floor(MAX_INPUT_CODE_POINTS / FAMILY_CODE_POINTS.length);
+    expect(isOverInputLimit(FAMILY.repeat(familiesInLimit))).toBe(false);
+    expect(isOverInputLimit(FAMILY.repeat(familiesInLimit + 1))).toBe(true);
   });
 });
