@@ -4,13 +4,13 @@
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=22.22.2"
+    "node": "^22.22.2 || >=24.15.0"
   },
   "scripts": {
     "check": "run-s format:check lint typecheck test tells context:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "tells": "python3 spec/scripts/check-tells",
