@@ -19,7 +19,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=22"

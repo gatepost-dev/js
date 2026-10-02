@@ -2,7 +2,7 @@ version = 1
 
 [[annotations]]
 path = [
-  "**/*.md", "**/*.json", "**/*.yaml", "pnpm-lock.yaml", ".prettierignore", "NOTICE",
+  "**/*.md", "**/*.json", "**/*.yaml", "pnpm-lock.yaml", ".prettierignore", "**/NOTICE",
   "CLAUDE.md", "**/etc/*.api.md", ".changeset/**", ".gitmodules",
 ]
 precedence = "aggregate"
