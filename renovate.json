@@ -30,7 +30,7 @@
       "description": [
         "The standards name the TypeScript version.",
         "TypeScript 6.1 and later wait until typescript-eslint supports them.",
-        "A major update needs a change to the standards first."
+        "An update to 6.1 or later needs a change to the standards first."
       ],
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<6.1"

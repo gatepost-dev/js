@@ -315,17 +315,18 @@ describe('the Renovate config', () => {
     }
   });
 
-  it('holds typescript below 7 and @types/node on its major, and gives the reason', () => {
+  it('holds typescript below 6.1 and @types/node on its major, and gives the reason', () => {
     const ruleFor = (name) =>
       config.packageRules?.find(({ matchPackageNames }) => matchPackageNames?.includes(name));
+    const reasonOf = (rule) => rule?.description?.join(' ') ?? '';
     const typescript = ruleFor('typescript');
     const nodeTypes = ruleFor('@types/node');
     assert.equal(typescript?.allowedVersions, '<6.1');
     assert.deepEqual(nodeTypes?.matchUpdateTypes, ['major']);
     assert.equal(nodeTypes?.enabled, false);
-    for (const rule of [typescript, nodeTypes]) {
-      assert.match(rule?.description?.join(' ') ?? '', /standards.*major update.*standards/);
-    }
+    // Each reason names the update that its rule holds. A hold below 6.1 also stops a minor update.
+    assert.match(reasonOf(typescript), /standards.*update to 6\.1 or later.*standards/);
+    assert.match(reasonOf(nodeTypes), /standards.*major update.*standards/);
   });
 
   // Renovate applies each match string to the whole file, and each match is one dependency.
