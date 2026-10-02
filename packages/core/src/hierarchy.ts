@@ -11,7 +11,7 @@ import type { Postcode, Precision } from './types.js';
  * @param code - A parsed postcode.
  * @param to - The precision to keep. It must not be more precise than the code.
  * @returns The shorter postcode.
- * @throws RangeError when `to` is more precise than the code.
+ * @throws RangeError when `to` is more precise than the code, or is not a precision.
  * @example
  * ```ts
  * const result = parse('EK-01-A03-FK-01');
@@ -21,8 +21,12 @@ import type { Postcode, Precision } from './types.js';
  * ```
  */
 export function truncate(code: Postcode, to: Precision): Postcode {
+  // An untyped JavaScript caller can pass a value that is not a precision.
+  if (precisionRank(to) < 0) {
+    throw new RangeError(`Unknown precision ${to}.`);
+  }
   if (precisionRank(to) > precisionRank(code.precision)) {
-    const problem = `Cannot truncate a ${code.precision} postcode to ${to}.`;
+    const problem = `Cannot truncate a postcode with ${code.precision} precision to ${to}.`;
     throw new RangeError(`${problem} Choose ${code.precision} or a less precise segment.`);
   }
   return makePostcode(code.compact.slice(0, SEGMENT_BOUNDS[to].end), to);
@@ -47,7 +51,7 @@ export function parent(code: Postcode): Postcode | null {
 }
 
 /**
- * Tells whether a postcode lies inside another postcode.
+ * Tells whether a postcode lies inside another postcode. A postcode contains itself.
  *
  * @param prefix - The larger postcode, such as a district.
  * @param code - The postcode to test.
@@ -62,6 +66,6 @@ export function parent(code: Postcode): Postcode | null {
  * ```
  */
 export function contains(prefix: Postcode, code: Postcode): boolean {
-  const lessPrecise = precisionRank(prefix.precision) <= precisionRank(code.precision);
-  return lessPrecise && code.compact.startsWith(prefix.compact);
+  // Each precision has a fixed compact length, so a prefix always ends at a segment boundary.
+  return code.compact.startsWith(prefix.compact);
 }

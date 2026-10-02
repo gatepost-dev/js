@@ -3,7 +3,8 @@
 import type { Postcode } from './types.js';
 
 /**
- * Hides the unit of a postcode, so that a log shows the area but not the building.
+ * Hides the unit of a postcode, so that a log shows the area but not the building. For a code
+ * without a unit, it returns the canonical form unchanged.
  *
  * @param code - A parsed postcode.
  * @returns The canonical form, with `**` in place of the unit.

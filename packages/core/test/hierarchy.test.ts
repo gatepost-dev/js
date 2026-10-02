@@ -6,6 +6,12 @@ import { loadVectors, parseVectorCode } from './vectors.js';
 
 type TruncateExpect = { readonly canonical: string } | { readonly rejects: true };
 
+// API-6: a returned postcode is immutable, and so are its segments.
+function expectFrozen(code: Postcode): void {
+  expect(Object.isFrozen(code)).toBe(true);
+  expect(Object.isFrozen(code.segments)).toBe(true);
+}
+
 describe('truncate', () => {
   const cases = loadVectors<{ code: string; to: Precision }, TruncateExpect>(
     'truncate',
@@ -17,14 +23,30 @@ describe('truncate', () => {
     if ('rejects' in vector.expect) {
       expect(run).toThrow(RangeError);
     } else {
-      expect(run().canonical).toBe(vector.expect.canonical);
+      const shorter = run();
+      expect(shorter).toEqual(parseVectorCode(vector.expect.canonical));
+      expectFrozen(shorter);
     }
   });
 
   it('says how to fix a cut to a more precise segment', () => {
     expect(() => truncate(parseVectorCode('EK-01-A03'), 'unit')).toThrow(
-      'Cannot truncate a district postcode to unit. Choose district or a less precise segment.',
+      'Cannot truncate a postcode with district precision to unit. ' +
+        'Choose district or a less precise segment.',
     );
+  });
+
+  it('says how to fix a cut of an area code to a unit', () => {
+    expect(() => truncate(parseVectorCode('EK-01-A03-FK'), 'unit')).toThrow(
+      'Cannot truncate a postcode with area precision to unit. ' +
+        'Choose area or a less precise segment.',
+    );
+  });
+
+  it.each(['street', 'toString'])('names the unknown precision %s', (notPrecision) => {
+    const run = (): Postcode => truncate(parseVectorCode('EK-01-A03'), notPrecision as Precision);
+    expect(run).toThrow(RangeError);
+    expect(run).toThrow(`Unknown precision ${notPrecision}.`);
   });
 });
 
@@ -32,8 +54,13 @@ describe('parent', () => {
   const cases = loadVectors<{ code: string }, { canonical: string | null }>('parent', 'parent');
 
   it.each(cases)('$id $description', (vector) => {
-    const result = parent(parseVectorCode(vector.input.code));
-    expect(result === null ? null : result.canonical).toBe(vector.expect.canonical);
+    const parentCode = parent(parseVectorCode(vector.input.code));
+    const expectedParent =
+      vector.expect.canonical === null ? null : parseVectorCode(vector.expect.canonical);
+    expect(parentCode).toEqual(expectedParent);
+    if (parentCode !== null) {
+      expectFrozen(parentCode);
+    }
   });
 });
 

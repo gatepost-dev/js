@@ -10,8 +10,8 @@ import { LEGACY } from './spec-data.js';
  * text cannot stall a server.
  *
  * @param input - Text from a user.
- * @returns True when the input has 64 code points or fewer and exactly 6 digits remain after
- * normalisation.
+ * @returns True when the input has 64 code points or fewer and exactly 6 ASCII digits remain
+ * after normalisation.
  * @example
  * ```ts
  * isLegacy('900 108'); // true
