@@ -24,6 +24,7 @@ describe('truncate', () => {
       expect(run).toThrow(RangeError);
     } else {
       const shorter = run();
+      expect(shorter.canonical).toBe(vector.expect.canonical);
       expect(shorter).toEqual(parseVectorCode(vector.expect.canonical));
       expectFrozen(shorter);
     }
@@ -43,10 +44,18 @@ describe('truncate', () => {
     );
   });
 
+  it('names an unknown precision that is a symbol, which a template cannot convert', () => {
+    const run = (): Postcode => truncate(parseVectorCode('EK-01-A03'), Symbol('area') as never);
+    expect(run).toThrow(RangeError);
+    expect(run).toThrow('Unknown precision "Symbol(area)".');
+  });
+
   it.each(['street', 'toString'])('names the unknown precision %s', (notPrecision) => {
     const run = (): Postcode => truncate(parseVectorCode('EK-01-A03'), notPrecision as Precision);
     expect(run).toThrow(RangeError);
-    expect(run).toThrow(`Unknown precision ${notPrecision}.`);
+    expect(run).toThrow(
+      `Unknown precision "${notPrecision}". Use one of state, lga, district, area, unit.`,
+    );
   });
 });
 
@@ -57,6 +66,7 @@ describe('parent', () => {
     const parentCode = parent(parseVectorCode(vector.input.code));
     const expectedParent =
       vector.expect.canonical === null ? null : parseVectorCode(vector.expect.canonical);
+    expect(parentCode?.canonical ?? null).toBe(vector.expect.canonical);
     expect(parentCode).toEqual(expectedParent);
     if (parentCode !== null) {
       expectFrozen(parentCode);
@@ -71,10 +81,10 @@ describe('contains', () => {
   );
 
   it.each(cases)('$id $description', (vector) => {
-    const result = contains(
+    const inside = contains(
       parseVectorCode(vector.input.prefix),
       parseVectorCode(vector.input.code),
     );
-    expect(result).toBe(vector.expect.value);
+    expect(inside).toBe(vector.expect.value);
   });
 });

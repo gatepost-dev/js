@@ -10,9 +10,9 @@ import type { Postcode } from './types.js';
  * @returns The canonical form, with `**` in place of the unit.
  * @example
  * ```ts
- * const result = parse('EK-01-A03-FK-01');
- * if (result.ok) {
- *   redact(result.value); // 'EK-01-A03-FK-**'
+ * const building = parse('EK-01-A03-FK-01');
+ * if (building.ok) {
+ *   redact(building.value); // 'EK-01-A03-FK-**'
  * }
  * ```
  */

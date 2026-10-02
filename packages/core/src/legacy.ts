@@ -1,16 +1,14 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import { isOverInputLimit } from './input-limit.js';
-import { normalize } from './normalize.js';
-import { LEGACY } from './spec-data.js';
+import { parse } from './parse.js';
 
 /**
  * Tells whether text is an old 6-digit NIPOST postcode. A legacy postcode names an area, not
- * a building. Like parse, it does not normalise input with more than 64 code points, so long
- * text cannot stall a server.
+ * a building. Like `parse`, it applies the input limit before it normalises, so long text
+ * cannot stall a server.
  *
  * @param input - Text from a user.
- * @returns True when the input has 64 code points or fewer and exactly 6 ASCII digits remain
+ * @returns True when the input is within the input limit and exactly 6 ASCII digits remain
  * after normalisation.
  * @example
  * ```ts
@@ -19,8 +17,6 @@ import { LEGACY } from './spec-data.js';
  * ```
  */
 export function isLegacy(input: string): boolean {
-  if (isOverInputLimit(input)) {
-    return false;
-  }
-  return LEGACY.test(normalize(input));
+  const parsed = parse(input);
+  return !parsed.ok && parsed.error.code === 'legacy_code';
 }

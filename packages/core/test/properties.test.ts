@@ -65,11 +65,11 @@ const validSegments = fc.tuple(
 const validCode = validSegments.map((segments) => segments.join(''));
 
 function parseValid(compact: string): Postcode {
-  const result = parse(compact);
-  if (!result.ok) {
-    throw new Error(`parse rejected the valid code ${compact}: ${result.error.code}`);
+  const parsed = parse(compact);
+  if (!parsed.ok) {
+    throw new Error(`parse rejected the valid code ${compact}: ${parsed.error.code}`);
   }
-  return result.value;
+  return parsed.value;
 }
 
 // The gap lists are one longer than the code, so a missing gap means a wrong test.
@@ -89,7 +89,7 @@ describe('parse properties', () => {
         const code = parseValid(compact);
         expect(code.compact).toBe(compact);
         expect(code.canonical).toBe(segments.join('-'));
-        expect(code.display.replaceAll(' ', '')).toBe(compact);
+        expect(code.display).toBe(segments.join(' '));
       }),
     );
   });
@@ -101,9 +101,9 @@ describe('parse properties', () => {
     });
     fc.assert(
       fc.property(validCode, gaps, (compact, runs) => {
-        const spaced = Array.from(compact, (char, index) => gapAt(runs, index) + char);
-        const result = parse(spaced.join('') + gapAt(runs, compact.length));
-        return result.ok && result.value.compact === compact;
+        const spaced = Array.from(compact, (codePoint, index) => gapAt(runs, index) + codePoint);
+        const parsed = parse(spaced.join('') + gapAt(runs, compact.length));
+        return parsed.ok && parsed.value.compact === compact;
       }),
     );
   });
@@ -118,7 +118,10 @@ describe('parse properties', () => {
       .chain(([compact, end]) =>
         fc
           .tuple(fc.integer({ min: 0, max: end - 1 }), fc.oneof(letter, digit, typo, anyCharacter))
-          .map(([index, char]) => compact.slice(0, index) + char + compact.slice(index + 1, end)),
+          .map(
+            ([index, replacement]) =>
+              compact.slice(0, index) + replacement + compact.slice(index + 1, end),
+          ),
       );
     const anyInput = fc.oneof(fc.string({ unit: anyCharacter }), cutCode, changedCode);
     fc.assert(
@@ -135,12 +138,12 @@ describe('parse properties', () => {
         validCode,
         fc.integer({ min: 0, max: SEGMENT_BOUNDS.unit.end - 1 }),
         typo,
-        (compact, index, char) => {
-          const result = parse(compact.slice(0, index) + char + compact.slice(index + 1));
-          if (result.ok || result.error.suggestion === null) {
+        (compact, index, mistake) => {
+          const parsed = parse(compact.slice(0, index) + mistake + compact.slice(index + 1));
+          if (parsed.ok || parsed.error.suggestion === null) {
             return true;
           }
-          return parse(result.error.suggestion).ok;
+          return parse(parsed.error.suggestion).ok;
         },
       ),
     );
@@ -152,9 +155,9 @@ describe('parse properties', () => {
       max: SEGMENT_BOUNDS.area.end - 1,
     });
     fc.assert(
-      fc.property(validCode, areaIndex, digit, (compact, index, char) => {
-        const result = parse(compact.slice(0, index) + char + compact.slice(index + 1));
-        return !result.ok && result.error.code === 'bad_segment' && result.error.segment === 'area';
+      fc.property(validCode, areaIndex, digit, (compact, index, areaDigit) => {
+        const parsed = parse(compact.slice(0, index) + areaDigit + compact.slice(index + 1));
+        return !parsed.ok && parsed.error.code === 'bad_segment' && parsed.error.segment === 'area';
       }),
     );
   });
@@ -226,7 +229,7 @@ describe('isLegacy properties', () => {
   function digitsWithGaps(count: { min: number; max: number }): fc.Arbitrary<string> {
     return fc
       .array(fc.tuple(separatorRun, digit), { minLength: count.min, maxLength: count.max })
-      .map((groups) => groups.map(([gap, char]) => gap + char).join(''));
+      .map((groups) => groups.map(([gap, numeral]) => gap + numeral).join(''));
   }
   // Six digits make a legacy postcode, so 5 and 7 digits are the near misses.
   const nearLegacy = digitsWithGaps({ min: 5, max: 7 });
@@ -243,8 +246,8 @@ describe('isLegacy properties', () => {
   it('is true exactly when parse fails with legacy_code', () => {
     fc.assert(
       fc.property(legacyCandidate, (input) => {
-        const result = parse(input);
-        return isLegacy(input) === (!result.ok && result.error.code === 'legacy_code');
+        const parsed = parse(input);
+        return isLegacy(input) === (!parsed.ok && parsed.error.code === 'legacy_code');
       }),
     );
   });

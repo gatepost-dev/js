@@ -14,22 +14,28 @@ import type { Postcode, Precision } from './types.js';
  * @throws RangeError when `to` is more precise than the code, or is not a precision.
  * @example
  * ```ts
- * const result = parse('EK-01-A03-FK-01');
- * if (result.ok) {
- *   truncate(result.value, 'district').canonical; // 'EK-01-A03'
+ * const building = parse('EK-01-A03-FK-01');
+ * if (building.ok) {
+ *   truncate(building.value, 'district').canonical; // 'EK-01-A03'
  * }
  * ```
  */
 export function truncate(code: Postcode, to: Precision): Postcode {
   // An untyped JavaScript caller can pass a value that is not a precision.
   if (precisionRank(to) < 0) {
-    throw new RangeError(`Unknown precision ${to}.`);
+    throw unknownPrecision(to);
   }
   if (precisionRank(to) > precisionRank(code.precision)) {
     const problem = `Cannot truncate a postcode with ${code.precision} precision to ${to}.`;
     throw new RangeError(`${problem} Choose ${code.precision} or a less precise segment.`);
   }
   return makePostcode(code.compact.slice(0, SEGMENT_BOUNDS[to].end), to);
+}
+
+// The value can be a symbol, which a template literal cannot convert. String can.
+function unknownPrecision(to: unknown): RangeError {
+  const problem = `Unknown precision "${String(to)}".`;
+  return new RangeError(`${problem} Use one of ${PRECISION_ORDER.join(', ')}.`);
 }
 
 /**
@@ -39,9 +45,9 @@ export function truncate(code: Postcode, to: Precision): Postcode {
  * @returns The parent postcode, or null for a state code.
  * @example
  * ```ts
- * const result = parse('EK-01-A03-FK-01');
- * if (result.ok) {
- *   parent(result.value)?.canonical; // 'EK-01-A03-FK'
+ * const building = parse('EK-01-A03-FK-01');
+ * if (building.ok) {
+ *   parent(building.value)?.canonical; // 'EK-01-A03-FK'
  * }
  * ```
  */

@@ -23,11 +23,11 @@ pnpm add @gatepost/core
 ```ts
 import { parse } from '@gatepost/core';
 
-const result = parse('ek 01 a03 fk 01');
-if (result.ok) {
-  result.value.canonical; // 'EK-01-A03-FK-01'
+const parsed = parse('ek 01 a03 fk 01');
+if (parsed.ok) {
+  parsed.value.canonical; // 'EK-01-A03-FK-01'
 } else {
-  result.error.code; // for example 'bad_length'
+  parsed.error.code; // for example 'bad_length'
 }
 ```
 

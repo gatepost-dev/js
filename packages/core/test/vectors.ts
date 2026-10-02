@@ -76,9 +76,9 @@ export function loadVectors<Input, Expect>(
  * @returns The postcode.
  */
 export function parseVectorCode(canonical: string): Postcode {
-  const result = parse(canonical, { allowPartial: true });
-  if (!result.ok) {
-    throw new Error(`The vector code ${canonical} does not parse: ${result.error.code}.`);
+  const parsed = parse(canonical, { allowPartial: true });
+  if (!parsed.ok) {
+    throw new Error(`The vector code ${canonical} does not parse: ${parsed.error.code}.`);
   }
-  return result.value;
+  return parsed.value;
 }
