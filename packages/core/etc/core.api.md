@@ -76,6 +76,4 @@ export function stateName(stateCode: string): string | null;
 // @public
 export function truncate(code: Postcode, to: Precision): Postcode;
 
-// (No @packageDocumentation comment for this package)
-
 ```
