@@ -10,18 +10,21 @@ import { isMainModule } from './main-module.mjs';
 
 // The pull request template holds this address in its Signed-off-by line.
 const TEMPLATE_ADDRESS = 'you@example.com';
-// An HTML comment is not text that a reader sees. Renovate ends each pull request body with one,
-// and a template can hold instructions in them, so the check leaves them out.
-const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+// Renovate ends each pull request body with this hidden comment, after the sign-off line, and
+// GitHub keeps it in the squash message. It is the only text that the check leaves out, so the
+// rest is linted as it will merge.
+const RENOVATE_COMMENT = /<!--renovate-debug:[A-Za-z0-9+/=]*-->\s*$/;
 
 /**
  * Builds the squash message of a pull request.
  *
- * @param pullRequest - The `title`, the `number` and the `body`. The body can be empty.
+ * @param pullRequest - The `title`, the `number` and the `body`. The body can be empty. The
+ * message leaves out the hidden comment that Renovate adds to the end of a body, and nothing
+ * else.
  * @returns The message, with a line feed at the end.
  */
 export function buildSquashMessage({ title, number, body }) {
-  const text = body.replaceAll('\r\n', '\n').replace(HTML_COMMENT, '').trim();
+  const text = body.replaceAll('\r\n', '\n').replace(RENOVATE_COMMENT, '').trim();
   if (text.toLowerCase().includes(TEMPLATE_ADDRESS)) {
     const problem = `The pull request body still holds the template address ${TEMPLATE_ADDRESS}.`;
     throw new Error(`${problem} Write your own name and address in the Signed-off-by line.`);

@@ -18,6 +18,9 @@ const RENOVATE_CONFIG = fileURLToPath(new URL('../renovate.json', import.meta.ur
 const SIGN_OFF = 'Signed-off-by: A Contributor <contributor@example.org>';
 const TITLE = 'fix(core): reject a unit of 00';
 const BODY = `The unit rule needs a check.\n\n${SIGN_OFF}`;
+// Renovate ends its body with this comment. The payload holds each character of base64.
+const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const RENOVATE_COMMENT = `<!--renovate-debug:${BASE64}==-->`;
 
 const folders = [];
 
@@ -83,24 +86,39 @@ describe('buildSquashMessage', () => {
     assert.equal(message, `${TITLE} (#3)\n\n${BODY}\n`);
   });
 
-  it('ignores an HTML comment, such as the one that Renovate adds to the end of its body', () => {
-    const body = `${BODY}\n<!--renovate-debug:eyJyZWFzb24iOiJ0ZXN0In0=-->\n`;
+  it('drops the comment that Renovate adds to the end of its body', () => {
+    const body = `${BODY}\n${RENOVATE_COMMENT}\n`;
     const message = buildSquashMessage({ title: TITLE, number: 12, body });
     assert.equal(message, `${TITLE} (#12)\n\n${BODY}\n`);
   });
 
-  it('ignores an HTML comment that spans lines, such as an instruction in a template', () => {
-    const body = `<!--\nWrite two sentences.\n-->\n\nThe unit rule needs a check.\n\n${SIGN_OFF}`;
+  it('keeps the comment of Renovate when text follows it', () => {
+    const body = `${RENOVATE_COMMENT}\n\n${BODY}`;
     const message = buildSquashMessage({ title: TITLE, number: 12, body });
-    assert.equal(message, `${TITLE} (#12)\n\nThe unit rule needs a check.\n\n${SIGN_OFF}\n`);
+    assert.equal(message, `${TITLE} (#12)\n\n${body}\n`);
   });
 
-  it('does not look for the template address inside an HTML comment', () => {
+  it('keeps a comment that starts like the one of Renovate but holds other text', () => {
+    const body = `${BODY}\n<!--renovate-debug: Text that is not base64. -->`;
+    const message = buildSquashMessage({ title: TITLE, number: 12, body });
+    assert.equal(message, `${TITLE} (#12)\n\n${body}\n`);
+  });
+
+  it('keeps any other comment, as GitHub keeps it in the message', () => {
+    const body = `<!--\nWrite two sentences.\n-->\n\nThe unit rule needs a check.\n\n${SIGN_OFF}`;
+    const message = buildSquashMessage({ title: TITLE, number: 12, body });
+    assert.equal(message, `${TITLE} (#12)\n\n${body}\n`);
+  });
+
+  it('keeps text that holds a comment inside a comment, so that no fragment is left over', () => {
+    const body = `<!<!-- x -->-- y -->\n\n${BODY}`;
+    const message = buildSquashMessage({ title: TITLE, number: 12, body });
+    assert.equal(message, `${TITLE} (#12)\n\n${body}\n`);
+  });
+
+  it('looks for the template address inside a comment too', () => {
     const body = `<!-- Signed-off-by: Your Name <you@example.com> -->\n\n${SIGN_OFF}`;
-    assert.equal(
-      buildSquashMessage({ title: TITLE, number: 12, body }),
-      `${TITLE} (#12)\n\n${SIGN_OFF}\n`,
-    );
+    assert.throws(() => buildSquashMessage({ title: TITLE, number: 12, body }), /template address/);
   });
 
   for (const address of ['you@example.com', 'You@Example.COM']) {
@@ -141,6 +159,28 @@ describe('the squash message and commitlint', () => {
     );
     assert.equal(status, 1);
     assert.ok(output.includes('[header-max-length]'), output);
+  });
+
+  it('fails when a comment follows the sign-off line, because the sign-off must come last', () => {
+    const body = `${BODY}\n<!-- Text that GitHub keeps in the message. -->`;
+    const { status, output } = lintMessage(buildSquashMessage({ title: TITLE, number: 12, body }));
+    assert.equal(status, 1);
+    assert.ok(output.includes('[signed-off-by]'), output);
+  });
+});
+
+describe('the squash message and check-tells', () => {
+  it('passes for a signed pull request', () => {
+    const message = buildSquashMessage({ title: TITLE, number: 12, body: BODY });
+    assert.deepEqual(checkTells(message), { status: 0, output: '' });
+  });
+
+  it('finds a non-ASCII character in a comment before the sign-off line', () => {
+    const dash = String.fromCodePoint(0x2013);
+    const body = `<!-- A dash ${dash} that a reader of the page does not see. -->\n\n${BODY}`;
+    const { status, output } = checkTells(buildSquashMessage({ title: TITLE, number: 12, body }));
+    assert.equal(status, 1);
+    assert.ok(output.includes('TELL-14'), output);
   });
 });
 
@@ -201,7 +241,7 @@ describe('the Renovate config', () => {
   it('writes a pull request body that passes the checks of the pull request job', () => {
     assert.ok(!config.prBodyTemplate.includes('{{'), 'The test reads the template as the body.');
     // Renovate ends each pull request body with a hidden comment.
-    const body = `${config.prBodyTemplate}\n<!--renovate-debug:eyJyZWFzb24iOiJ0ZXN0In0=-->\n`;
+    const body = `${config.prBodyTemplate}\n${RENOVATE_COMMENT}\n`;
     const message = buildSquashMessage({ title, number: 25, body });
     assert.deepEqual(lintMessage(message), { status: 0, output: '' });
     assert.deepEqual(checkTells(message), { status: 0, output: '' });
