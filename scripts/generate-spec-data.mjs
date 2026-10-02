@@ -13,6 +13,9 @@ const SEPARATOR_LABEL = /^U\+[0-9A-F]{4,6}$/;
 const root = new URL('../', import.meta.url);
 const target = new URL('packages/core/src/spec-data.ts', root);
 
+// These lines are the SPDX tags of the generated file. REUSE must not read them as tags of this
+// script, where they end in a quote and a comma.
+// REUSE-IgnoreStart
 const HEADER = [
   '// SPDX-FileCopyrightText: 2026 The Gatepost authors',
   '// SPDX-License-Identifier: Apache-2.0',
@@ -21,6 +24,7 @@ const HEADER = [
   "import type { Precision, PrecisionThreshold, SegmentBounds, SegmentRule } from './types.js';",
   '',
 ];
+// REUSE-IgnoreEnd
 
 function readJson(path) {
   const dataFile = JSON.parse(readFileSync(new URL(path, root), 'utf8'));
