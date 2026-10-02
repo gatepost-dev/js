@@ -30,11 +30,11 @@ const SOURCES = readdirSync(SOURCE_FOLDER)
 function examplesOf({ file, docs }: (typeof SOURCES)[number]): readonly Example[] {
   const sections = docs.flatMap((doc) => doc.split(/^@example\b/m).slice(1));
   const blocks = sections.flatMap((section, index) => {
-    const found = tsBlocks(section);
-    if (found.length === 0) {
+    const inSection = tsBlocks(section);
+    if (inSection.length === 0) {
       throw new Error(`The @example number ${String(index)} in ${file} has no ts code fence.`);
     }
-    return found;
+    return inSection;
   });
   return blocks.map((source, index) => ({ name: `${file} example ${String(index)}`, source }));
 }

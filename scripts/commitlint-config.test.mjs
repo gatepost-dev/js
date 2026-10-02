@@ -23,14 +23,14 @@ function lintMessage(...rows) {
 
 describe('the commit message config accepts', () => {
   it('a message with a scope, a body and a sign-off', () => {
-    const result = lintMessage(
+    const verdict = lintMessage(
       'fix(core): reject a unit of 00',
       '',
       'The unit rule needs a check.',
       '',
       SIGN_OFF,
     );
-    assert.deepEqual(result, { status: 0, output: '' });
+    assert.deepEqual(verdict, { status: 0, output: '' });
   });
 
   it('a header with a sign-off and no body', () => {
@@ -86,9 +86,9 @@ describe('the commit message config rejects', () => {
 
   for (const { name, rule, rows } of cases) {
     it(`${name}, and names the rule ${rule}`, () => {
-      const result = lintMessage(...rows);
-      assert.equal(result.status, 1, result.output);
-      assert.ok(result.output.includes(`[${rule}]`), result.output);
+      const { status, output } = lintMessage(...rows);
+      assert.equal(status, 1, output);
+      assert.ok(output.includes(`[${rule}]`), output);
     });
   }
 });

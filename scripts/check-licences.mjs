@@ -112,8 +112,8 @@ function readReport() {
       return { problem: 'Cannot start pnpm. Enable it with corepack enable.' };
     }
     if (typeof error.status === 'number') {
-      const exit = `pnpm licenses list exited with the code ${error.status}.`;
-      return { problem: [exit, error.stderr.trim()].filter((line) => line !== '').join('\n') };
+      const summary = `pnpm licenses list exited with the code ${error.status}.`;
+      return { problem: [summary, error.stderr.trim()].filter((line) => line !== '').join('\n') };
     }
     throw error;
   }

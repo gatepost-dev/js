@@ -127,18 +127,20 @@ describe('the squash message and commitlint', () => {
 
   it('fails for a pull request with no sign-off in its body', () => {
     const message = buildSquashMessage({ title: TITLE, number: 12, body: 'No sign-off.' });
-    const result = lintMessage(message);
-    assert.equal(result.status, 1);
-    assert.ok(result.output.includes('[signed-off-by]'), result.output);
+    const { status, output } = lintMessage(message);
+    assert.equal(status, 1);
+    assert.ok(output.includes('[signed-off-by]'), output);
   });
 
   it('fails when the suffix pushes a title of 72 characters past the limit', () => {
     const title = `fix(core): ${'a'.repeat(61)}`;
     assert.equal(title.length, 72);
     assert.equal(lintMessage(`${title}\n\n${SIGN_OFF}\n`).status, 0);
-    const result = lintMessage(buildSquashMessage({ title, number: 12, body: SIGN_OFF }));
-    assert.equal(result.status, 1);
-    assert.ok(result.output.includes('[header-max-length]'), result.output);
+    const { status, output } = lintMessage(
+      buildSquashMessage({ title, number: 12, body: SIGN_OFF }),
+    );
+    assert.equal(status, 1);
+    assert.ok(output.includes('[header-max-length]'), output);
   });
 });
 
@@ -154,8 +156,8 @@ describe('squash-message.mjs as a command', () => {
   });
 
   it('prints only the subject when the body is not set', () => {
-    const result = runScript({ PR_TITLE: TITLE, PR_NUMBER: '12' });
-    assert.deepEqual(result, { status: 0, stdout: `${TITLE} (#12)\n`, stderr: '' });
+    const printed = runScript({ PR_TITLE: TITLE, PR_NUMBER: '12' });
+    assert.deepEqual(printed, { status: 0, stdout: `${TITLE} (#12)\n`, stderr: '' });
   });
 
   it('runs through a symbolic link, as a runner may start it', () => {
@@ -168,19 +170,19 @@ describe('squash-message.mjs as a command', () => {
 
   it('fails and prints nothing for a body with the template address', () => {
     const body = 'Signed-off-by: Your Name <you@example.com>';
-    const result = runScript({ ...env, PR_BODY: body });
-    assert.equal(result.status, 1);
-    assert.equal(result.stdout, '');
-    assert.match(result.stderr, /still holds the template address you@example\.com/);
+    const { status, stdout, stderr } = runScript({ ...env, PR_BODY: body });
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.match(stderr, /still holds the template address you@example\.com/);
   });
 
   it('fails when the title or the number is missing', () => {
     for (const missing of ['PR_TITLE', 'PR_NUMBER']) {
       const rest = Object.entries(env).filter(([name]) => name !== missing);
-      const result = runScript(Object.fromEntries(rest));
-      assert.equal(result.status, 2);
-      assert.equal(result.stdout, '');
-      assert.equal(result.stderr, `Set ${missing}.\n`);
+      const { status, stdout, stderr } = runScript(Object.fromEntries(rest));
+      assert.equal(status, 2);
+      assert.equal(stdout, '');
+      assert.equal(stderr, `Set ${missing}.\n`);
     }
   });
 });

@@ -28,8 +28,8 @@ const eslint = new ESLint({
 });
 
 async function lint(code, filePath = SOURCE_FILE) {
-  const [result] = await eslint.lintText(code, { filePath });
-  return result.messages;
+  const [fileReport] = await eslint.lintText(code, { filePath });
+  return fileReport.messages;
 }
 
 function lines(...rows) {
@@ -298,12 +298,12 @@ describe('the lint config rejects bad snippets', () => {
   for (const { rule, name, code, message } of BAD) {
     it(`reports ${rule} for ${name}`, async () => {
       const messages = await lint(code);
-      assert.ok(!messages.some((found) => found.fatal), JSON.stringify(messages));
-      const reports = messages.filter((found) => found.ruleId === rule);
+      assert.ok(!messages.some((reported) => reported.fatal), JSON.stringify(messages));
+      const reports = messages.filter((reported) => reported.ruleId === rule);
       assert.ok(reports.length > 0, `No ${rule} report. Reports: ${JSON.stringify(messages)}`);
       if (message !== undefined) {
         assert.ok(
-          reports.some((found) => message.test(found.message)),
+          reports.some((reported) => message.test(reported.message)),
           JSON.stringify(reports),
         );
       }
@@ -312,14 +312,17 @@ describe('the lint config rejects bad snippets', () => {
 
   it('reports an import of node:test once, and not once for each rule option', async () => {
     const messages = await lint(lines("import test from 'node:test';", 'export const run = test;'));
-    assert.equal(messages.filter((found) => found.ruleId === 'no-restricted-imports').length, 1);
+    assert.equal(
+      messages.filter((reported) => reported.ruleId === 'no-restricted-imports').length,
+      1,
+    );
   });
 });
 
 describe('the lint config in test files', () => {
   it('rejects an enum, as TS-5 says for all code', async () => {
     const messages = await lint(lines('enum Color {', '  Red,', '}'), TEST_FILE);
-    assert.ok(messages.some((found) => found.ruleId === 'no-restricted-syntax'));
+    assert.ok(messages.some((reported) => reported.ruleId === 'no-restricted-syntax'));
   });
 
   it('allows a non-null assertion, as TS-4 says', async () => {

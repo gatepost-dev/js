@@ -24,9 +24,9 @@ after(() => {
 
 function editData(root, name, change) {
   const file = join(root, 'spec', 'data', name);
-  const data = JSON.parse(readFileSync(file, 'utf8'));
-  change(data);
-  writeFileSync(file, JSON.stringify(data));
+  const dataFile = JSON.parse(readFileSync(file, 'utf8'));
+  change(dataFile);
+  writeFileSync(file, JSON.stringify(dataFile));
 }
 
 // A copy of the folders that the script reads and writes: the script itself, the spec data and
@@ -132,9 +132,9 @@ describe('generate-spec-data.mjs with a bad argument', () => {
     it(`rejects ${args.join(' ')} with exit code 2 and writes nothing`, () => {
       const root = copyOfRepo();
       placeNotGenerated(root);
-      const result = generate(root, ...args);
-      assert.equal(result.status, 2);
-      assert.match(result.stderr, /^Unknown argument \S+\. Use --check or no argument\.\n$/);
+      const { status, stderr } = generate(root, ...args);
+      assert.equal(status, 2);
+      assert.match(stderr, /^Unknown argument \S+\. Use --check or no argument\.\n$/);
       assertNothingWritten(root);
     });
   }
@@ -145,15 +145,15 @@ describe('generate-spec-data.mjs with a bad data version', () => {
     for (const version of [2, undefined]) {
       it(`rejects the version ${String(version)} in ${name} and writes nothing`, () => {
         const root = copyOfRepo({
-          [name]: (data) => {
-            data.version = version;
+          [name]: (dataFile) => {
+            dataFile.version = version;
           },
         });
         placeNotGenerated(root);
-        const result = generate(root);
-        assert.equal(result.status, 1);
+        const { status, stderr } = generate(root);
+        assert.equal(status, 1);
         const message = `spec/data/${name} has version ${String(version)}, not 1.`;
-        assert.ok(result.stderr.includes(message), result.stderr);
+        assert.ok(stderr.includes(message), stderr);
         assertNothingWritten(root);
       });
     }
@@ -180,9 +180,9 @@ describe('generate-spec-data.mjs with a bad separator label', () => {
         },
       });
       placeNotGenerated(root);
-      const result = generate(root);
-      assert.equal(result.status, 1);
-      assert.ok(result.stderr.includes(`Bad separator label ${shown}.`), result.stderr);
+      const { status, stderr } = generate(root);
+      assert.equal(status, 1);
+      assert.ok(stderr.includes(`Bad separator label ${shown}.`), stderr);
       assertNothingWritten(root);
     });
   }
@@ -207,10 +207,10 @@ describe('generate-spec-data.mjs with a bad maxInputCodePoints', () => {
         },
       });
       placeNotGenerated(root);
-      const result = generate(root);
-      assert.equal(result.status, 1);
+      const { status, stderr } = generate(root);
+      assert.equal(status, 1);
       const message = `maxInputCodePoints ${shown}. Use a positive whole number.`;
-      assert.ok(result.stderr.includes(message), result.stderr);
+      assert.ok(stderr.includes(message), stderr);
       assertNothingWritten(root);
     });
   }

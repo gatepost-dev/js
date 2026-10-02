@@ -182,19 +182,19 @@ describe('check-licences.mjs as a command', { skip: process.platform === 'win32'
   });
 
   it('names the package and exits with 1 for a licence that is not allowed', () => {
-    const result = runCheck({ pathFolder, report: copyleft });
-    assert.equal(result.status, 1);
-    assert.equal(result.stdout, '');
-    assert.match(result.stderr, /^copyleft@1\.0\.0 has the licence GPL-3\.0\.\n/);
-    assert.match(result.stderr, /Allow a package only with a recorded exception in this script\./);
+    const { status, stdout, stderr } = runCheck({ pathFolder, report: copyleft });
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.match(stderr, /^copyleft@1\.0\.0 has the licence GPL-3\.0\.\n/);
+    assert.match(stderr, /Allow a package only with a recorded exception in this script\./);
   });
 
   it('still checks when node starts the script through a symbolic link', () => {
     const link = join(newFolder(), 'link.mjs');
     symlinkSync(SCRIPT, link);
-    const result = runCheck({ pathFolder, report: copyleft, script: link });
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /copyleft@1\.0\.0 has the licence GPL-3\.0\./);
+    const { status, stderr } = runCheck({ pathFolder, report: copyleft, script: link });
+    assert.equal(status, 1);
+    assert.match(stderr, /copyleft@1\.0\.0 has the licence GPL-3\.0\./);
   });
 
   it('does not run its command when another module imports it', () => {
@@ -209,31 +209,31 @@ describe('check-licences.mjs as a command', { skip: process.platform === 'win32'
   });
 
   it('asks for pnpm install when the report is empty', () => {
-    const result = runCheck({ pathFolder, report: {} });
-    assert.equal(result.status, 1);
-    assert.equal(result.stderr, 'pnpm cannot list the licences. Run pnpm install first.\n');
+    const { status, stderr } = runCheck({ pathFolder, report: {} });
+    assert.equal(status, 1);
+    assert.equal(stderr, 'pnpm cannot list the licences. Run pnpm install first.\n');
   });
 
   it('asks for pnpm install when every licence is Unknown', () => {
     const report = { Unknown: [{ name: 'a', versions: ['1.0.0'] }] };
-    const result = runCheck({ pathFolder, report });
-    assert.equal(result.status, 1);
-    assert.equal(result.stderr, 'pnpm cannot list the licences. Run pnpm install first.\n');
+    const { status, stderr } = runCheck({ pathFolder, report });
+    assert.equal(status, 1);
+    assert.equal(stderr, 'pnpm cannot list the licences. Run pnpm install first.\n');
   });
 
   it('prints the error of pnpm when pnpm fails, and does not ask for pnpm install', () => {
     const pnpmError = 'ERR_PNPM_BROKEN_LOCKFILE  The lockfile is broken.';
-    const result = runCheck({ pathFolder, pnpmError, pnpmStatus: 3 });
-    assert.equal(result.status, 1);
-    assert.equal(result.stdout, '');
-    assert.ok(result.stderr.includes(pnpmError), result.stderr);
-    assert.ok(result.stderr.includes('pnpm licenses list exited with the code 3.'), result.stderr);
-    assert.ok(!result.stderr.includes('pnpm install'), result.stderr);
+    const { status, stdout, stderr } = runCheck({ pathFolder, pnpmError, pnpmStatus: 3 });
+    assert.equal(status, 1);
+    assert.equal(stdout, '');
+    assert.ok(stderr.includes(pnpmError), stderr);
+    assert.ok(stderr.includes('pnpm licenses list exited with the code 3.'), stderr);
+    assert.ok(!stderr.includes('pnpm install'), stderr);
   });
 
   it('says that pnpm is missing when no pnpm is on the PATH', () => {
-    const result = runCheck({ pathFolder: newFolder(), report: {} });
-    assert.equal(result.status, 1);
-    assert.equal(result.stderr, 'Cannot start pnpm. Enable it with corepack enable.\n');
+    const { status, stderr } = runCheck({ pathFolder: newFolder(), report: {} });
+    assert.equal(status, 1);
+    assert.equal(stderr, 'Cannot start pnpm. Enable it with corepack enable.\n');
   });
 });
