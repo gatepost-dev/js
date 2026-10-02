@@ -16,6 +16,11 @@ function accuracy(input: AccuracyInput): number | null {
   if (input === '-Infinity') {
     return Number.NEGATIVE_INFINITY;
   }
+  if (typeof input === 'string') {
+    throw new Error(
+      `precision-for-accuracy.json holds the unknown accuracy token ${String(input)}.`,
+    );
+  }
   return input;
 }
 

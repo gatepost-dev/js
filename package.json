@@ -7,7 +7,7 @@
     "node": "^22.22.2 || >=24.15.0"
   },
   "scripts": {
-    "check": "run-s format:check lint typecheck test tells context:check generate:check",
+    "check": "run-s generate:check format:check lint typecheck test tells context:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",

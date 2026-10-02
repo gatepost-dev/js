@@ -20,7 +20,8 @@ interface VectorFile<Input, Expect> {
 const VECTORS = new URL('../../../spec/vectors/', import.meta.url);
 
 /**
- * Reads one vector file and checks that it tests the expected function.
+ * Reads one vector file and checks that it has the expected version, tests the expected
+ * function and holds at least one case.
  *
  * @param file - The file name without `.json`, for example `parse-segments`.
  * @param fn - The function that the file must test, for example `parse`.
@@ -31,9 +32,15 @@ export function loadVectors<Input, Expect>(
   fn: string,
 ): readonly VectorCase<Input, Expect>[] {
   const text = readFileSync(new URL(`${file}.json`, VECTORS), 'utf8');
-  const data = JSON.parse(text) as VectorFile<Input, Expect>;
-  if (data.version !== 1 || data.function !== fn) {
-    throw new Error(`${file}.json tests ${data.function}, not ${fn}, or uses an unknown format.`);
+  const vectorFile = JSON.parse(text) as VectorFile<Input, Expect>;
+  if (vectorFile.version !== 1) {
+    throw new Error(`${file}.json has version ${String(vectorFile.version)}, not 1.`);
   }
-  return data.cases;
+  if (vectorFile.function !== fn) {
+    throw new Error(`${file}.json tests ${vectorFile.function}, not ${fn}.`);
+  }
+  if (vectorFile.cases.length === 0) {
+    throw new Error(`${file}.json has no cases.`);
+  }
+  return vectorFile.cases;
 }
