@@ -39,7 +39,7 @@ if (parsed.ok) {
 - Names the problem in a bad code, and suggests a fix for common typos, such as O in place of 0.
 - Recognises old 6-digit postcodes.
 - Writes a code in its compact, canonical and display forms.
-- Cuts a code down to its area, district, LGA or state, and checks whether one code contains another.
+- Shortens a code to its area, district, LGA or state, and checks whether one code contains another.
 - Hides the unit of a code for logs.
 
 The package checks the form of a postcode, with no network access. It checks the length, the characters, the state code and the rule for each segment. It cannot tell whether a building has a given postcode. Only NIPOST's API can say that.
@@ -147,7 +147,7 @@ precisionForAccuracy(null); // 'lga'
 
 ### Move between segments
 
-`truncate` cuts a postcode down to a less precise segment. It throws a `RangeError` when you ask for more precision than the code has. `parent` returns the postcode one segment up, or `null` for a state. `contains` tells whether one postcode lies inside another.
+`truncate` shortens a postcode to a less precise segment. It throws a `RangeError` when you ask for more precision than the code has. `parent` returns the postcode one segment up, or `null` for a state. `contains` tells whether one postcode lies inside another.
 
 ```ts
 import { contains, parent, parse, truncate } from '@gatepost/core';

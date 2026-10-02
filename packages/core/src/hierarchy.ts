@@ -6,7 +6,7 @@ import { PRECISION_ORDER, SEGMENT_BOUNDS } from './spec-data.js';
 import type { Postcode, Precision } from './types.js';
 
 /**
- * Cuts a postcode down to a less precise segment, for example from a building to its area.
+ * Shortens a postcode to a less precise segment, for example from a building to its area.
  *
  * @param code - A parsed postcode.
  * @param to - The precision to keep. It must not be more precise than the code.
