@@ -16,15 +16,26 @@ const EXAMPLES = README.split('```')
   .filter((block) => block.startsWith('ts\n'))
   .map((block) => block.slice('ts\n'.length));
 
-// A line such as `canonical; // 'EK-01-A03-FK-01'` states a result. The test turns it into an
-// assertion, so the README cannot show a result that the code does not give.
+// A line such as `canonical; // 'EK-01-A03-FK-01'` states a result. The test turns it into a call
+// of `strictEqual`, so the README cannot show a result that the code does not give. A guard such
+// as `if (result.ok)` can skip such a call. So the module counts the calls that run, and the test
+// compares that count with the number of result lines.
 const SHOWN_RESULT = /^(\s*)(.+);\s*\/\/ ('[^']*'|-?\d+(?:\.\d+)?|true|false|null)$/gm;
+
+const COUNTING_PREAMBLE = [
+  "import { strictEqual as assertEqual } from 'node:assert/strict';",
+  'export let checkedResults = 0;',
+  'function strictEqual(actual: unknown, expected: unknown): void {',
+  '  assertEqual(actual, expected);',
+  '  checkedResults += 1;',
+  '}',
+].join('\n');
 
 function toModule(example: string): string {
   const source = example
     .replaceAll("'@gatepost/core'", "'../../src/index.js'")
     .replace(SHOWN_RESULT, '$1strictEqual($2, $3);');
-  return `import { strictEqual } from 'node:assert/strict';\n${source}`;
+  return `${COUNTING_PREAMBLE}\n${source}`;
 }
 
 describe('README', () => {
@@ -47,7 +58,12 @@ describe('README', () => {
     async ({ index, source }) => {
       const file = join(folder, `example-${String(index)}.ts`);
       writeFileSync(file, toModule(source));
-      await import(pathToFileURL(file).href);
+      const { checkedResults } = (await import(pathToFileURL(file).href)) as {
+        checkedResults: number;
+      };
+      const shownResults = Array.from(source.matchAll(SHOWN_RESULT)).length;
+      const compared = `${String(checkedResults)} of ${String(shownResults)} results`;
+      expect(checkedResults, `Example ${String(index)} compared ${compared}.`).toBe(shownResults);
     },
   );
 

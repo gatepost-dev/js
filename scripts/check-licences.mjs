@@ -4,7 +4,6 @@
 // exception. The script reads `pnpm licenses list --json`, so run `pnpm install` first.
 import { execFileSync } from 'node:child_process';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
 
 // The first six licences are the ones that the standard names. The last three are permissive
 // too, and dev tools in the tree use them.
@@ -90,12 +89,38 @@ export function findViolations(
     );
 }
 
+// With no installed packages, pnpm exits with 0 and gives every package the licence "Unknown". So
+// a report without one known licence, even an empty report, shows that the install is missing.
+function cannotListLicences(report) {
+  const packages = Object.values(report).flat();
+  return packages.length === 0 || Object.keys(report).every((licence) => licence === 'Unknown');
+}
+
+function readReport() {
+  try {
+    const output = execFileSync('pnpm', ['licenses', 'list', '--json'], {
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return JSON.parse(output);
+  } catch (error) {
+    // The call fails with the exit code of pnpm, or with ENOENT when pnpm is missing. Both mean
+    // that pnpm cannot list the licences, and an empty report says so.
+    if (typeof error.status === 'number' || error.code === 'ENOENT') {
+      return {};
+    }
+    throw error;
+  }
+}
+
 function main() {
-  const output = execFileSync('pnpm', ['licenses', 'list', '--json'], {
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  const report = JSON.parse(output);
+  const report = readReport();
+  if (cannotListLicences(report)) {
+    process.stderr.write('pnpm cannot list the licences. Run pnpm install first.\n');
+    process.exitCode = 1;
+    return;
+  }
   const violations = findViolations(report);
   if (violations.length > 0) {
     process.stderr.write(`${violations.join('\n')}\n`);
@@ -107,6 +132,6 @@ function main() {
   process.stdout.write(`Checked ${count} packages. Each has an allowed licence or an exception.\n`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   main();
 }

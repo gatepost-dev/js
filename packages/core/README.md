@@ -179,6 +179,7 @@ if (building.ok) {
 | Requirement   | Version                             |
 | ------------- | ----------------------------------- |
 | Node          | 22 or later, or any current browser |
+| Module format | ESM only                            |
 | Gatepost spec | 0.1.0                               |
 
 The package exports `SPEC_VERSION`, the version of the Gatepost spec that it implements.

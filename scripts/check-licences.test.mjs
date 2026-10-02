@@ -69,7 +69,20 @@ describe('findViolations', () => {
 });
 
 describe('the default policy', () => {
-  for (const licence of ['MIT', 'ISC', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', '0BSD']) {
+  // The first six are in the standard. The last three are permissive too (Ruling R31).
+  const permissive = [
+    'MIT',
+    'ISC',
+    'Apache-2.0',
+    'BSD-2-Clause',
+    'BSD-3-Clause',
+    '0BSD',
+    'BlueOak-1.0.0',
+    'CC0-1.0',
+    'Python-2.0',
+  ];
+
+  for (const licence of permissive) {
     it(`allows the permissive licence ${licence}`, () => {
       assert.deepEqual(findViolations(report(licence, 'any-package')), []);
     });
@@ -84,5 +97,17 @@ describe('the default policy', () => {
   it('records caniuse-lite as the one package that may use CC-BY-4.0', () => {
     assert.deepEqual(findViolations(report('CC-BY-4.0', 'caniuse-lite')), []);
     assert.equal(findViolations(report('CC-BY-4.0', 'another-data-set')).length, 1);
+  });
+
+  it('records spdx-exceptions as the one package that may use CC-BY-3.0', () => {
+    assert.deepEqual(findViolations(report('CC-BY-3.0', 'spdx-exceptions')), []);
+    assert.equal(findViolations(report('CC-BY-3.0', 'another-data-set')).length, 1);
+    assert.equal(findViolations(report('CC-BY-4.0', 'spdx-exceptions')).length, 1);
+  });
+
+  it('records lightningcss and its platform packages as the only users of MPL-2.0', () => {
+    const platforms = ['lightningcss', 'lightningcss-darwin-arm64', 'lightningcss-linux-x64-gnu'];
+    assert.deepEqual(findViolations(report('MPL-2.0', ...platforms)), []);
+    assert.equal(findViolations(report('MPL-2.0', 'lightningcssx', 'another-tool')).length, 2);
   });
 });
