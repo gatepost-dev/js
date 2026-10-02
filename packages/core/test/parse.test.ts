@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   parse,
   type ParseError,
@@ -8,6 +8,7 @@ import {
   type Precision,
   type Segments,
 } from '../src/index.js';
+import { MAX_INPUT_CODE_POINTS } from '../src/spec-data.js';
 import { loadVectors } from './vectors.js';
 
 type ParseExpect =
@@ -49,5 +50,19 @@ describe('parse results', () => {
       failure: Object.isFrozen(failure),
       error: !failure.ok && Object.isFrozen(failure.error),
     }).toEqual({ success: true, postcode: true, segments: true, failure: true, error: true });
+  });
+});
+
+describe('parse input limit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('skips normalisation over the input limit but not at the limit', () => {
+    const normalizeCalls = vi.spyOn(String.prototype, 'normalize');
+    parse('EK01A03FK01'.padEnd(MAX_INPUT_CODE_POINTS + 1));
+    expect(normalizeCalls).toHaveBeenCalledTimes(0);
+    parse('EK01A03FK01'.padEnd(MAX_INPUT_CODE_POINTS));
+    expect(normalizeCalls).toHaveBeenCalledTimes(1);
   });
 });

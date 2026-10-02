@@ -33,4 +33,9 @@ describe('precisionForAccuracy', () => {
   it.each(cases)('$id $description', (vector) => {
     expect(precisionForAccuracy(accuracy(vector.input))).toBe(vector.expect.value);
   });
+
+  // An untyped JavaScript caller can pass a string. A comparison such as '5' <= 8 accepts it.
+  it.each(['5', '0', true])('treats %j as an unknown accuracy', (notNumber) => {
+    expect(precisionForAccuracy(notNumber as unknown as number)).toBe('lga');
+  });
 });
