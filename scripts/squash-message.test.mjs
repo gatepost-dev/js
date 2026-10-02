@@ -320,7 +320,7 @@ describe('the Renovate config', () => {
       config.packageRules?.find(({ matchPackageNames }) => matchPackageNames?.includes(name));
     const typescript = ruleFor('typescript');
     const nodeTypes = ruleFor('@types/node');
-    assert.equal(typescript?.allowedVersions, '<7');
+    assert.equal(typescript?.allowedVersions, '<6.1');
     assert.deepEqual(nodeTypes?.matchUpdateTypes, ['major']);
     assert.equal(nodeTypes?.enabled, false);
     for (const rule of [typescript, nodeTypes]) {
