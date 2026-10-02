@@ -94,11 +94,16 @@ const BAD = [
     name: 'a Node module by its bare name',
     code: lines("import { readFileSync } from 'fs';", 'export const read = readFileSync;'),
   },
-  ...['process', 'Buffer', '__dirname', '__filename', 'global'].map((name) => ({
+  ...['process', 'Buffer', '__dirname', '__filename', 'global', 'require'].map((name) => ({
     rule: 'no-restricted-globals',
     name: `the global ${name}`,
     code: lines(`export const found = ${name};`),
   })),
+  {
+    rule: 'no-restricted-globals',
+    name: 'a require call for a Node module',
+    code: lines("export const os = require('node:os');"),
+  },
   {
     rule: 'no-restricted-properties',
     name: 'globalThis.process',

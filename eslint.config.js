@@ -11,7 +11,7 @@ const message = 'Core code runs in every runtime. Use no Node APIs (CS-2).';
 // A dynamic import can name a Node module with a string, so only a relative file passes.
 const dynamicImportMessage = `${message} A dynamic import may name only a relative file.`;
 const dynamicImport = 'ImportExpression:not([source.value=/^\\./])';
-const nodeGlobals = ['process', 'Buffer', '__dirname', '__filename', 'global'];
+const nodeGlobals = ['process', 'Buffer', '__dirname', '__filename', 'global', 'require'];
 const bannedSyntax = ['TSEnumDeclaration', 'TSModuleDeclaration'];
 // Constants, because a selector would pass 100 columns inside the rule options (TELL-1).
 const exportedArrowFunction =
