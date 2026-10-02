@@ -18,6 +18,12 @@ const BODY = `The unit rule needs a check.\n\n${SIGN_OFF}`;
 // Renovate ends its body with this comment. The payload holds each character of base64.
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const RENOVATE_COMMENT = `<!--renovate-debug:${BASE64}==-->`;
+// White space outside ASCII. The pattern \s and the method trim remove most of these characters,
+// so check-tells would never see them, although GitHub can keep them in the message.
+const UNICODE_SPACES = [0x3000, 0x2028, 0x00a0, 0x0085, 0x2003].map((codePoint) => ({
+  name: `U+${codePoint.toString(16).toUpperCase().padStart(4, '0')}`,
+  character: String.fromCodePoint(codePoint),
+}));
 
 const folders = [];
 
@@ -63,10 +69,50 @@ describe('buildSquashMessage', () => {
     assert.equal(message, `${TITLE} (#3)\n\n${BODY}\n`);
   });
 
+  it('drops each ASCII white space character around the title and the body', () => {
+    for (const space of [' ', '\t', '\r', '\n']) {
+      const title = `${space}${TITLE}${space}`;
+      const message = buildSquashMessage({ title, number: 3, body: `${space}${BODY}${space}` });
+      assert.equal(message, `${TITLE} (#3)\n\n${BODY}\n`, JSON.stringify(space));
+    }
+  });
+
+  it('keeps a Unicode white space character at the start and at the end of the title', () => {
+    for (const { name, character } of UNICODE_SPACES) {
+      for (const title of [`${character}${TITLE}`, `${TITLE}${character}`]) {
+        const message = buildSquashMessage({ title, number: 3, body: BODY });
+        assert.equal(message, `${title} (#3)\n\n${BODY}\n`, name);
+      }
+    }
+  });
+
+  it('keeps a Unicode white space character at the start and at the end of the body', () => {
+    for (const { name, character } of UNICODE_SPACES) {
+      for (const body of [`${character}${BODY}`, `${BODY}${character}`]) {
+        const message = buildSquashMessage({ title: TITLE, number: 3, body });
+        assert.equal(message, `${TITLE} (#3)\n\n${body}\n`, name);
+      }
+    }
+  });
+
   it('drops the comment that Renovate adds to the end of its body', () => {
     const body = `${BODY}\n${RENOVATE_COMMENT}\n`;
     const message = buildSquashMessage({ title: TITLE, number: 12, body });
     assert.equal(message, `${TITLE} (#12)\n\n${BODY}\n`);
+  });
+
+  it('drops the ASCII white space after the comment that Renovate adds', () => {
+    const body = `${BODY}\n${RENOVATE_COMMENT} \t\r\n\n`;
+    const message = buildSquashMessage({ title: TITLE, number: 12, body });
+    assert.equal(message, `${TITLE} (#12)\n\n${BODY}\n`);
+  });
+
+  it('keeps a Unicode white space character after the comment of Renovate', () => {
+    for (const { name, character } of UNICODE_SPACES) {
+      const body = `${BODY}\n${RENOVATE_COMMENT}${character}`;
+      const message = buildSquashMessage({ title: TITLE, number: 12, body });
+      assert.equal(message, `${TITLE} (#12)\n\n${body}\n`, name);
+    }
   });
 
   it('keeps the comment of Renovate when text follows it', () => {
@@ -181,6 +227,27 @@ describe('the squash message and the squash mode of check-tells', () => {
     );
     assert.equal(status, 1);
     assert.equal(output.match(/TELL-18/g)?.length, 2, output);
+  });
+});
+
+describe('the pull request job on a body that ends with the comment of Renovate', () => {
+  const build = (end) =>
+    buildSquashMessage({ title: TITLE, number: 12, body: `${BODY}\n${RENOVATE_COMMENT}${end}` });
+
+  it('passes commitlint and check-tells', () => {
+    const message = build('');
+    assert.deepEqual(lintMessage(message), { status: 0, output: '' });
+    assert.deepEqual(checkSquashMessage(message), { status: 0, output: '' });
+  });
+
+  it('fails commitlint and check-tells when U+3000 follows the comment', () => {
+    const message = build(String.fromCodePoint(0x3000));
+    const linted = lintMessage(message);
+    assert.equal(linted.status, 1);
+    assert.ok(linted.output.includes('[signed-off-by]'), linted.output);
+    const checked = checkSquashMessage(message);
+    assert.equal(checked.status, 1);
+    assert.ok(checked.output.includes('TELL-14'), checked.output);
   });
 });
 
