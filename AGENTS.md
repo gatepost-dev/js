@@ -22,8 +22,8 @@ This repo is part of Gatepost, unofficial open-source developer tools for Nigeri
 ## Done means all of these
 
 1. A failing test came first, and it passes now.
-2. `pnpm check` passes. It runs the formatter, linters, tests, vectors, size limits and `check-tells`.
-3. Each user-visible change has a change file.
+2. `pnpm check` passes. It runs the formatter, linters, tests, vectors, size limits, `check-tells`, REUSE and zizmor.
+3. Each change to a package has a change file. Run `pnpm changeset --empty` when the change needs no release.
 4. A change to the public interface also updates the API report and the docs.
 5. Each new domain term is in `CONTEXT.md`.
 6. The diff touches only the lines that the task needs.
