@@ -5,7 +5,11 @@ export default {
   rules: {
     'header-max-length': [2, 'always', 72],
     'scope-empty': [2, 'never'],
-    'scope-enum': [2, 'always', ['core', 'client', 'field', 'react', 'repo', 'deps', 'release']],
+    'scope-enum': [
+      2,
+      'always',
+      ['core', 'client', 'field', 'react', 'mock', 'repo', 'deps', 'release'],
+    ],
     'signed-off-by': [2, 'always', 'Signed-off-by:'],
   },
 };
