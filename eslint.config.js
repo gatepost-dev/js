@@ -28,6 +28,7 @@ export default defineConfig(
       '**/.stryker-tmp/**',
       'spec/**',
       '**/spec-data.ts',
+      '**/spec-messages.ts',
     ],
   },
   eslint.configs.recommended,

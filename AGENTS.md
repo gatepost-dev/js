@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repo is part of Gatepost, unofficial open-source developer tools for Nigeria's National Digital Postcode. This repo holds the TypeScript packages. Today it has `@gatepost/core`, `@gatepost/client` and the private `@gatepost/mock-server`.
+This repo is part of Gatepost, unofficial open-source developer tools for Nigeria's National Digital Postcode. This repo holds the TypeScript packages. Today it has `@gatepost/core`, `@gatepost/client`, `@gatepost/field` and the private `@gatepost/mock-server`.
 
 ## Read first
 
