@@ -39,10 +39,25 @@ export interface SpecFiles {
   readonly segments: readonly SegmentRule[];
 }
 
+// A response has exactly one of these fields.
+const RESPONSE_KINDS = ['body', 'text', 'fixture', 'hang', 'drop'] as const;
+
 type JsonObject = Readonly<Record<string, unknown>>;
 
-function readJson(folder: string, name: string): unknown {
-  return JSON.parse(readFileSync(join(folder, name), 'utf8'));
+// `where` is the file's path under the spec folder, such as `contract/probe.json`.
+function readJson(folder: string, name: string, where: string): unknown {
+  try {
+    return JSON.parse(readFileSync(join(folder, name), 'utf8'));
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new SyntaxError(`${where}: ${error.message}`, { cause: error });
+    }
+    throw error;
+  }
+}
+
+function sortedNames(folder: string): string[] {
+  return readdirSync(folder).sort();
 }
 
 function objectIn(value: unknown, where: string): JsonObject {
@@ -73,6 +88,14 @@ function field<T>(
 }
 
 const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isIntegerFrom =
+  (low: number, high: number) =>
+  (value: unknown): value is number =>
+    Number.isInteger(value) && (value as number) >= low && (value as number) <= high;
+const isStatus = isIntegerFrom(100, 599);
+const isDelay = isIntegerFrom(0, Number.MAX_SAFE_INTEGER);
+const isCount = isIntegerFrom(1, Number.MAX_SAFE_INTEGER);
+const isLevel = isIntegerFrom(1, 5);
 const isText = (value: unknown): value is string => typeof value === 'string';
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
 const isTextList = (value: unknown): value is string[] =>
@@ -90,16 +113,19 @@ function textRecord(value: unknown, where: string): Readonly<Record<string, stri
 
 function readFixtures(folder: string): Map<string, Fixture> {
   const fixtures = new Map<string, Fixture>();
-  const groups = readdirSync(folder, { withFileTypes: true }).filter((entry) =>
-    entry.isDirectory(),
-  );
+  const groups = readdirSync(folder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
   for (const group of groups) {
-    for (const file of readdirSync(join(folder, group.name)).filter((name) =>
-      name.endsWith('.json'),
-    )) {
-      const name = `${group.name}/${file.slice(0, -'.json'.length)}`;
-      const record = objectIn(readJson(folder, `${name}.json`), `fixtures/${name}.json`);
-      const status = field(record, 'status', `fixtures/${name}.json`, isNumber);
+    for (const file of sortedNames(join(folder, group)).filter((n) => n.endsWith('.json'))) {
+      const name = `${group}/${file.slice(0, -'.json'.length)}`;
+      const where = `fixtures/${name}.json`;
+      const record = objectIn(readJson(folder, `${name}.json`, where), where);
+      const status = field(record, 'status', where, isStatus);
+      if (!('body' in record)) {
+        throw new TypeError(`${where}: the field body is missing.`);
+      }
       fixtures.set(name, { status, body: record['body'] });
     }
   }
@@ -108,21 +134,29 @@ function readFixtures(folder: string): Map<string, Fixture> {
 
 function readKeys(folder: string): { keys: Map<string, MockKey>; requestsPerMinute: number } {
   const where = 'fixtures/keys.json';
-  const document = objectIn(readJson(folder, 'keys.json'), where);
+  const document = objectIn(readJson(folder, 'keys.json', where), where);
   const keys = new Map<string, MockKey>();
-  for (const entry of listIn(document['keys'], where)) {
-    const record = objectIn(entry, where);
-    const key = field(record, 'key', where, isText);
+  const entries: string[] = [];
+  for (const [index, entry] of listIn(document['keys'], where).entries()) {
+    const here = `${where} (entry ${String(index + 1)})`;
+    const record = objectIn(entry, here);
+    const key = field(record, 'key', here, isText);
+    const first = entries.indexOf(key);
+    if (first !== -1) {
+      const entry = `entry ${String(first + 1)} and in entry ${String(index + 1)}`;
+      throw new TypeError(`${where}: the key ${key} is in ${entry}.`);
+    }
+    entries.push(key);
     keys.set(key, {
       key,
-      lookupLevel: field(record, 'lookupLevel', where, isNumber),
-      lookupScope: field(record, 'lookupScope', where, isBoolean),
-      credits: field(record, 'credits', where, isBoolean),
-      rateLimited: field(record, 'rateLimited', where, isBoolean),
-      origins: field(record, 'origins', where, isTextListOrNull),
+      lookupLevel: field(record, 'lookupLevel', here, isLevel),
+      lookupScope: field(record, 'lookupScope', here, isBoolean),
+      credits: field(record, 'credits', here, isBoolean),
+      rateLimited: field(record, 'rateLimited', here, isBoolean),
+      origins: field(record, 'origins', here, isTextListOrNull),
     });
   }
-  return { keys, requestsPerMinute: field(document, 'requestsPerMinute', where, isNumber) };
+  return { keys, requestsPerMinute: field(document, 'requestsPerMinute', where, isCount) };
 }
 
 function scenarioReply(
@@ -131,8 +165,16 @@ function scenarioReply(
   where: string,
 ): Reply {
   const response = objectIn(value, where);
+  const kinds = RESPONSE_KINDS.filter((kind) => response[kind] !== undefined);
+  if (kinds.length !== 1) {
+    const problem =
+      kinds.length === 0
+        ? 'has no body, text, fixture, hang or drop'
+        : `has more than one of ${kinds.join(', ')}`;
+    throw new TypeError(`${where}: the response ${problem}.`);
+  }
   const delayMs =
-    response['delayMs'] === undefined ? 0 : field(response, 'delayMs', where, isNumber);
+    response['delayMs'] === undefined ? 0 : field(response, 'delayMs', where, isDelay);
   if (response['hang'] === true) {
     return { kind: 'hang' };
   }
@@ -147,7 +189,7 @@ function scenarioReply(
     }
     return { ...jsonReply(fixture.status, fixture.body, headers), delayMs };
   }
-  const status = field(response, 'status', where, isNumber);
+  const status = field(response, 'status', where, isStatus);
   if (typeof response['text'] === 'string') {
     const textHeaders = { 'Content-Type': 'text/plain; charset=utf-8', ...headers };
     return { kind: 'send', status, headers: textHeaders, body: response['text'], delayMs };
@@ -160,14 +202,26 @@ function readScenarios(
   fixtures: ReadonlyMap<string, Fixture>,
 ): Map<string, readonly Reply[]> {
   const scenarios = new Map<string, readonly Reply[]>();
-  for (const file of readdirSync(folder).filter((name) => name.endsWith('.json'))) {
+  const files = new Map<string, string>();
+  for (const file of sortedNames(folder).filter((name) => name.endsWith('.json'))) {
     const where = `contract/${file}`;
-    const scenario = objectIn(readJson(folder, file), where);
+    const scenario = objectIn(readJson(folder, file, where), where);
     const id = field(scenario, 'id', where, isText);
+    const earlier = files.get(id);
+    if (earlier !== undefined) {
+      throw new TypeError(`${where}: the id ${id} is already used by ${earlier}.`);
+    }
+    const stem = file.slice(0, -'.json'.length);
+    if (id !== stem) {
+      throw new TypeError(`${where}: the id ${id} must equal the file name ${stem}.`);
+    }
+    files.set(id, where);
     const responses = listIn(scenario['responses'], where);
     scenarios.set(
       id,
-      responses.map((response) => scenarioReply(response, fixtures, where)),
+      responses.map((response, index) =>
+        scenarioReply(response, fixtures, `${where} (response ${String(index + 1)})`),
+      ),
     );
   }
   return scenarios;
@@ -175,7 +229,7 @@ function readScenarios(
 
 function readSegments(folder: string): SegmentRule[] {
   const where = 'data/format.json';
-  const document = objectIn(readJson(folder, 'format.json'), where);
+  const document = objectIn(readJson(folder, 'format.json', where), where);
   let start = 0;
   return listIn(document['segments'], where).map((entry) => {
     const record = objectIn(entry, where);
@@ -196,7 +250,7 @@ function readSegments(folder: string): SegmentRule[] {
 
 function readStates(folder: string): string[] {
   const where = 'data/states.json';
-  const document = objectIn(readJson(folder, 'states.json'), where);
+  const document = objectIn(readJson(folder, 'states.json', where), where);
   return listIn(document['states'], where).map((entry) =>
     field(objectIn(entry, where), 'code', where, isText),
   );

@@ -44,6 +44,14 @@ describe('the lint config in the mock server', () => {
     assert.deepEqual(found, []);
   });
 
+  it('allows the process global through globalThis', async () => {
+    const found = await ruleIds(
+      '/** The port that PORT names. */',
+      'export const port: string | undefined = globalThis.process.env.PORT;',
+    );
+    assert.deepEqual(found, []);
+  });
+
   it('still rejects a console call, as TS-12 says', async () => {
     const found = await ruleIds(
       '/** Says hello. */',

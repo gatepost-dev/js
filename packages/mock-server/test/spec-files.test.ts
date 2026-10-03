@@ -99,12 +99,142 @@ describe('readSpecFiles', () => {
     const scenario = { id: 'probe', responses: [{ fixture: 'lookup/valid-level-9' }] };
     const folder = specWith('contract/probe.json', JSON.stringify(scenario));
     expect(() => readSpecFiles(folder)).toThrow(
-      'contract/probe.json: no fixture is named lookup/valid-level-9.',
+      'contract/probe.json (response 1): no fixture is named lookup/valid-level-9.',
     );
   });
 
-  it('stops at a key file that is not JSON', () => {
-    expect(() => readSpecFiles(specWith('fixtures/keys.json', '{'))).toThrow(SyntaxError);
+  it.each([
+    ['contract/probe.json'],
+    ['fixtures/lookup/probe.json'],
+    ['data/states.json'],
+    ['fixtures/keys.json'],
+  ])('stops at %s when it is not JSON, and names the file', (file) => {
+    const run = (): unknown => readSpecFiles(specWith(file, '{'));
+    expect(run).toThrow(SyntaxError);
+    expect(run).toThrow(new RegExp(`^${file}: .*JSON`));
+  });
+
+  it.each([
+    ['no kind field', { status: 200 }, 'the response has no body, text, fixture, hang or drop.'],
+    [
+      'two kind fields',
+      { hang: true, drop: true },
+      'the response has more than one of hang, drop.',
+    ],
+    [
+      'a fixture and a body',
+      { fixture: 'lookup/invalid', body: {} },
+      'the response has more than one of body, fixture.',
+    ],
+  ])('stops at a response with %s, and names the file and the response', (_name, bad, why) => {
+    const scenario = { id: 'probe', responses: [{ fixture: 'lookup/invalid' }, bad] };
+    const folder = specWith('contract/probe.json', JSON.stringify(scenario));
+    expect(() => readSpecFiles(folder)).toThrow(`contract/probe.json (response 2): ${why}`);
+  });
+
+  it('stops at a fixture with no body, and names the file', () => {
+    const folder = specWith('fixtures/lookup/probe.json', '{"status": 200}');
+    expect(() => readSpecFiles(folder)).toThrow(
+      'fixtures/lookup/probe.json: the field body is missing.',
+    );
+  });
+
+  it('stops at a scenario id that another file already uses, and names both files', () => {
+    const scenario = { id: 'lookup-timeout', responses: [] };
+    const folder = specWith('contract/probe.json', JSON.stringify(scenario));
+    expect(() => readSpecFiles(folder)).toThrow(
+      'contract/probe.json: the id lookup-timeout is already used by contract/lookup-timeout.json.',
+    );
+  });
+
+  it('stops at a scenario whose id is not its file name', () => {
+    const folder = specWith('contract/probe.json', '{"id": "other", "responses": []}');
+    expect(() => readSpecFiles(folder)).toThrow(
+      'contract/probe.json: the id other must equal the file name probe.',
+    );
+  });
+
+  it('stops at a key that appears twice, and says which entries', () => {
+    const keys = JSON.parse(readFileSync(join(SPEC_DIR, 'fixtures/keys.json'), 'utf8')) as {
+      keys: { key: string }[];
+    };
+    keys.keys.push({ ...keys.keys[0]! });
+    const folder = specWith('fixtures/keys.json', JSON.stringify(keys));
+    expect(() => readSpecFiles(folder)).toThrow(
+      `fixtures/keys.json: the key ${keys.keys[0]!.key} is in entry 1 and in entry 8.`,
+    );
+  });
+
+  it('says which key entry has a wrong field', () => {
+    const keys = JSON.parse(readFileSync(join(SPEC_DIR, 'fixtures/keys.json'), 'utf8')) as {
+      keys: Record<string, unknown>[];
+    };
+    keys.keys[2]!['lookupLevel'] = 'three';
+    const folder = specWith('fixtures/keys.json', JSON.stringify(keys));
+    expect(() => readSpecFiles(folder)).toThrow(
+      'fixtures/keys.json (entry 3): the field lookupLevel has the wrong type.',
+    );
+  });
+
+  it.each([
+    ['a status of 99999', { status: 99999, body: {} }, 'status'],
+    ['a status of 200.5', { status: 200.5, body: {} }, 'status'],
+    ['a negative delay', { status: 200, body: {}, delayMs: -5 }, 'delayMs'],
+  ])('stops at a response with %s', (_name, response, name) => {
+    const folder = specWith(
+      'contract/probe.json',
+      JSON.stringify({ id: 'probe', responses: [response] }),
+    );
+    expect(() => readSpecFiles(folder)).toThrow(
+      `contract/probe.json (response 1): the field ${name} has the wrong type.`,
+    );
+  });
+
+  it.each([
+    ['requestsPerMinute', -3],
+    ['requestsPerMinute', 1.5],
+  ])('stops at %s of %s in the key file', (name, value) => {
+    const keys = JSON.parse(readFileSync(join(SPEC_DIR, 'fixtures/keys.json'), 'utf8')) as object;
+    const folder = specWith('fixtures/keys.json', JSON.stringify({ ...keys, [name]: value }));
+    expect(() => readSpecFiles(folder)).toThrow(
+      `fixtures/keys.json: the field ${name} has the wrong type.`,
+    );
+  });
+
+  it('stops at a key with a level above 5', () => {
+    const keys = JSON.parse(readFileSync(join(SPEC_DIR, 'fixtures/keys.json'), 'utf8')) as {
+      keys: Record<string, unknown>[];
+    };
+    keys.keys[0]!['lookupLevel'] = 9;
+    const folder = specWith('fixtures/keys.json', JSON.stringify(keys));
+    expect(() => readSpecFiles(folder)).toThrow('(entry 1): the field lookupLevel');
+  });
+
+  it('stops at a scenario file that is not an object, and at responses that are not a list', () => {
+    expect(() => readSpecFiles(specWith('contract/probe.json', '[]'))).toThrow(
+      'contract/probe.json must be a JSON object.',
+    );
+    const bad = '{"id": "probe", "responses": {}}';
+    expect(() => readSpecFiles(specWith('contract/probe.json', bad))).toThrow(
+      'contract/probe.json must be a JSON array.',
+    );
+  });
+
+  it('stops at a header whose value is not text', () => {
+    const response = { status: 200, body: {}, headers: { 'Retry-After': 1 } };
+    const folder = specWith(
+      'contract/probe.json',
+      JSON.stringify({ id: 'probe', responses: [response] }),
+    );
+    expect(() => readSpecFiles(folder)).toThrow('(response 1): the field Retry-After');
+  });
+
+  it('lists scenarios and fixtures in the sorted order of their file names', () => {
+    const byFile = (a: string, b: string): number => (`${a}.json` < `${b}.json` ? -1 : 1);
+    const ids = [...FILES.scenarios.keys()];
+    expect(ids).toEqual([...ids].sort(byFile));
+    const names = [...FILES.fixtures.keys()];
+    expect(names).toEqual([...names].sort(byFile));
   });
 });
 
@@ -123,6 +253,12 @@ describe('fixtureReply', () => {
   it('fails for a fixture that the spec does not have', () => {
     expect(() => fixtureReply(FILES, 'lookup/valid-level-9')).toThrow(
       'The spec has no fixture lookup/valid-level-9.',
+    );
+  });
+
+  it('fails when a change meets a body with no data', () => {
+    expect(() => fixtureReply(FILES, 'errors/rate-limited', { postcode: 'X' })).toThrow(
+      'fixtures/errors/rate-limited.json must be a JSON object.',
     );
   });
 });
