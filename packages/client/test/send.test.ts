@@ -335,3 +335,21 @@ describe('Retry-After', () => {
     await Promise.allSettled([...waiting, vi.advanceTimersByTimeAsync(5000)]);
   });
 });
+
+describe('a transport that fails with its own abort error', () => {
+  it('still gives a timeout, and does not retry it for autocomplete', async () => {
+    const attempts = vi.fn();
+    const transport: typeof fetch = (_input, init) => {
+      attempts();
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'));
+        });
+      });
+    };
+    const { settings } = settingsWith({ timeoutMs: 1000, transport });
+    const error = reasonOf(await settle(sendLookup(settings, { timeoutRetried: false }), 20_000));
+    expect((error as PostcodeError).code).toBe('timeout');
+    expect(attempts).toHaveBeenCalledTimes(1);
+  });
+});
