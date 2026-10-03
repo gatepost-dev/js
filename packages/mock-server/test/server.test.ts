@@ -118,6 +118,11 @@ describe('the contract scenarios over HTTP', () => {
 });
 
 describe('the mock server', () => {
+  it('listens on the loopback address when no host is given', async () => {
+    const server = await start();
+    expect(server.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+  });
+
   it('answers with the gateway headers and a body that ends with a line feed', async () => {
     const { url } = await start();
     const response = await fetch(`${url}/v1/lookup?code=FC-01-Z99-ZZ-01`, { headers: KEY });

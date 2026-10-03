@@ -60,6 +60,10 @@ await mock.close();
 | `MOCK_DELAY_MS`     | a wait before every response, for timeout tests | 0                                   |
 | `GATEPOST_SPEC_DIR` | the spec folder                                 | the `spec` submodule                |
 
+An empty value counts as no value. At start, the server checks the shape of each file in the spec
+folder and names a broken file. It does not check a fixture body against the OpenAPI file. Point
+`GATEPOST_SPEC_DIR` only at a spec folder that `make check` has passed.
+
 ## Requirements
 
 | Requirement   | Version                                    |

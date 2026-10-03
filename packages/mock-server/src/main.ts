@@ -15,11 +15,17 @@ function wholeNumber(name: string, fallback: number): number {
   return parsed;
 }
 
+// An empty HOST counts as unset, as an empty PORT does. It must not bind every interface.
+function hostFromEnvironment(): string {
+  const host = process.env['HOST'] ?? '';
+  return host === '' ? '127.0.0.1' : host;
+}
+
 function optionsFromEnvironment(): MockServerOptions {
   const specDir = process.env['GATEPOST_SPEC_DIR'] ?? '';
   return {
     port: wholeNumber('PORT', 4010),
-    host: process.env['HOST'] ?? '127.0.0.1',
+    host: hostFromEnvironment(),
     delayMs: wholeNumber('MOCK_DELAY_MS', 0),
     ...(specDir === '' ? {} : { specDir }),
   };

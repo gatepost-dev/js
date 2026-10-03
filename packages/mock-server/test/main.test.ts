@@ -58,6 +58,11 @@ describe('the mock server command', () => {
     expect([health, result.code, result.stderr]).toEqual([200, 0, '']);
   });
 
+  it('binds the loopback address when HOST is empty', async () => {
+    const result = await run({ PORT: '0', HOST: '' });
+    expect(result.stdout).toMatch(/listens on http:\/\/127\.0\.0\.1:\d+\n$/);
+  });
+
   it.each([
     ['PORT', 'abc'],
     ['MOCK_DELAY_MS', '-5'],
