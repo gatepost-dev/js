@@ -114,10 +114,12 @@ describe('the default policy', () => {
     assert.equal(findViolations(report('CC-BY-4.0', 'spdx-exceptions')).length, 1);
   });
 
-  it('records lightningcss and its platform packages as the only users of MPL-2.0', () => {
+  it('records lightningcss and the axe accessibility checks as the only users of MPL-2.0', () => {
     const platforms = ['lightningcss', 'lightningcss-darwin-arm64', 'lightningcss-linux-x64-gnu'];
-    assert.deepEqual(findViolations(report('MPL-2.0', ...platforms)), []);
-    assert.equal(findViolations(report('MPL-2.0', 'lightningcssx', 'another-tool')).length, 2);
+    const checks = ['axe-core', '@axe-core/playwright'];
+    assert.deepEqual(findViolations(report('MPL-2.0', ...platforms, ...checks)), []);
+    const others = ['lightningcssx', 'axe-corex', '@axe-core/react', 'another-tool'];
+    assert.equal(findViolations(report('MPL-2.0', ...others)).length, 4);
   });
 });
 

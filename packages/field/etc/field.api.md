@@ -4,11 +4,48 @@
 
 ```ts
 
+import { Postcode } from '@gatepost/core';
+
+// @public
+export interface ChangeDetail {
+    readonly accuracyM: number | null;
+    readonly postcode: Postcode | null;
+    readonly source: ChangeSource;
+    readonly value: string;
+}
+
+// @public
+export type ChangeSource = "typed" | "pasted" | "suggestion" | "gps";
+
 // @public
 export type MessageKey = "label" | "hint" | "empty" | "bad_character" | "bad_length" | "unknown_state" | "bad_lga" | "bad_area" | "bad_unit" | "suggestion" | "use_suggestion" | "legacy_accepted" | "legacy_rejected" | "valid" | "checking" | "not_found" | "confirmed" | "confirmed_place" | "check_failed" | "secret_key" | "use_location" | "locating" | "gps_coarse" | "gps_not_found" | "gps_denied" | "gps_unavailable";
 
 // @public
 export type Messages = Readonly<Record<MessageKey, string>>;
+
+// Warning: (ae-forgotten-export) The symbol "ElementBase" needs to be exported by the entry point index.d.ts
+//
+// @public
+export class PostcodeFieldElement extends ElementBase {
+    constructor();
+    attributeChangedCallback(name: string): void;
+    checkValidity(): boolean;
+    connectedCallback(): void;
+    get form(): HTMLFormElement | null;
+    static readonly formAssociated = true;
+    formDisabledCallback(disabled: boolean): void;
+    formResetCallback(): void;
+    formStateRestoreCallback(state: unknown): void;
+    get messages(): Messages;
+    set messages(messages: Partial<Messages>);
+    static readonly observedAttributes: readonly string[];
+    reportValidity(): boolean;
+    get validationMessage(): string;
+    get validity(): ValidityState;
+    get value(): string;
+    set value(text: string);
+    get willValidate(): boolean;
+}
 
 // @public
 export const SPEC_VERSION = "0.3.0";

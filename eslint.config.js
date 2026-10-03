@@ -91,6 +91,8 @@ export default defineConfig(
         },
       ],
       'jsdoc/tag-lines': ['error', 'any', { startLines: 1 }],
+      // A getter documents a property, so a @returns tag would only repeat its summary.
+      'jsdoc/require-returns': ['error', { checkGetters: false }],
       'jsdoc/check-tag-names': [
         'error',
         { definedTags: ['packageDocumentation', 'internal', 'defaultValue'] },
