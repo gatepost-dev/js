@@ -14,6 +14,7 @@ TypeScript packages for Nigeria's National Digital Postcode.
 | [`@gatepost/core`](packages/core)               | Parse, check and format postcodes offline.          |
 | [`@gatepost/client`](packages/client)           | Call NIPOST's gateway, with retries and limits.     |
 | [`@gatepost/field`](packages/field)             | A postcode field for any web form.                  |
+| [`@gatepost/react`](packages/react)             | The postcode field as a React component.            |
 | [`@gatepost/mock-server`](packages/mock-server) | Mock NIPOST's gateway for client tests. Not on npm. |
 
 ## Develop
@@ -25,7 +26,7 @@ You need Node 24, `corepack enable`, Python 3.11 or later and `uv`.
     pnpm exec playwright install chromium
     pnpm check
 
-The tests of the field run in Chromium, which Playwright installs once.
+The tests of the field and of the React package run in Chromium, which Playwright installs once.
 `pnpm check` runs the journeys of the field too, with a test page on port 3000 and the mock server
 on port 4010, so both ports must be free.
 

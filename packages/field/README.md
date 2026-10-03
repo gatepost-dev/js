@@ -126,7 +126,7 @@ The package exports `SPEC_VERSION`, the version of the Gatepost spec that it imp
 
 ## Docs
 
-The API report is in [`etc/field.api.md`](https://github.com/gatepost-dev/js/blob/main/packages/field/etc/field.api.md). [`field.md`](https://github.com/gatepost-dev/spec/blob/main/field.md) in the spec repo defines the settings, the events, the states and the rules of the field.
+The API report is in [`etc/field.api.md`](https://github.com/gatepost-dev/js/blob/main/packages/field/etc/field.api.md). [`field.md`](https://github.com/gatepost-dev/spec/blob/main/field.md) in the spec repo defines the settings, the events, the states and the rules of the field. React apps can use [`@gatepost/react`](https://github.com/gatepost-dev/js/tree/main/packages/react).
 
 ## Support
 
