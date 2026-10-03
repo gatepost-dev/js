@@ -125,13 +125,14 @@ describe('the total deadline', () => {
   });
 
   it('retries after a Retry-After that ends exactly at the deadline', async () => {
+    // The deadline is 2 x 1125 ms and one wait of up to 750 ms, so 3000 ms.
     const { settings, requests } = settingsWith(
-      { timeoutMs: 2000, maxRetries: 1 },
-      unavailable('4'),
+      { timeoutMs: 1125, maxRetries: 1 },
+      unavailable('3'),
       VALID_LOOKUP,
     );
     const call = sendLookup(settings);
-    await vi.advanceTimersByTimeAsync(4000);
+    await vi.advanceTimersByTimeAsync(3000);
     await call;
     expect(requests).toHaveLength(2);
   });
@@ -159,6 +160,48 @@ describe('a 503 with Retry-After', () => {
     await vi.advanceTimersByTimeAsync(1);
     await call;
     expect(requests).toHaveLength(2);
+  });
+});
+
+describe('timers', () => {
+  it.each([
+    ['a success', [VALID_LOOKUP]],
+    ['a failed response', [{ status: 500, body: {} }]],
+    ['a dropped connection', ['drop']],
+  ] as const)('leaves no timer after %s', async (_, answers) => {
+    const { settings } = settingsWith({ maxRetries: 0 }, ...answers);
+    await Promise.allSettled([sendLookup(settings)]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('leaves no timer after a cancelled attempt, or a cancelled wait', async () => {
+    const attempt = settingsWith({ maxRetries: 0 }, 'hang');
+    const wait = settingsWith({}, { status: 503, body: {} });
+    for (const { settings } of [attempt, wait]) {
+      const controller = new AbortController();
+      const call = sendLookup(settings, { signal: controller.signal });
+      await vi.advanceTimersByTimeAsync(100);
+      controller.abort();
+      await Promise.allSettled([call]);
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  });
+
+  it('ends an attempt whose body does not arrive in time', async () => {
+    const transport: typeof fetch = (_, init) => {
+      const signal = init?.signal ?? new AbortController().signal;
+      const body = new ReadableStream({
+        start(stream) {
+          signal.addEventListener('abort', () => {
+            stream.error(signal.reason);
+          });
+        },
+      });
+      return Promise.resolve(new Response(body, { status: 200 }));
+    };
+    const { settings } = settingsWith({ transport, timeoutMs: 1000, maxRetries: 0 });
+    const error = reasonOf(await settle(sendLookup(settings), 1000)) as PostcodeError;
+    expect(error.code).toBe('timeout');
   });
 });
 
@@ -202,8 +245,24 @@ describe('cancellation (API-11)', () => {
     const call = sendLookup(settings, { signal: controller.signal });
     await vi.advanceTimersByTimeAsync(100);
     controller.abort();
-    expect(reasonOf(await settle(call, 5000))).toBe(controller.signal.reason);
+    // The call ends at once, not when the wait of 500 ms or more ends.
+    expect(reasonOf(await settle(call, 0))).toBe(controller.signal.reason);
     expect(requests).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('does not wait for a retry when the signal aborted during the attempt', async () => {
+    const controller = new AbortController();
+    const fake = fakeTransport({ status: 503, body: {} });
+    const transport: typeof fetch = async (input, init) => {
+      const response = await fake.transport(input, init);
+      controller.abort();
+      return response;
+    };
+    const { settings } = settingsWith({ transport });
+    const call = sendLookup(settings, { signal: controller.signal });
+    expect(reasonOf(await settle(call, 0))).toBe(controller.signal.reason);
+    expect(fake.requests).toHaveLength(1);
   });
 
   it('takes a waiting request out of the queue, so the next one takes its place', async () => {

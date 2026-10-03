@@ -89,6 +89,7 @@ function failureOf(error: unknown, signal: AbortSignal): unknown {
 // A timer can fire up to a millisecond early on a finer clock. The client never waits less than
 // a Retry-After asks, so it sets a new timer for any time that is left.
 function pause(waitMs: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
   const until = performance.now() + waitMs;
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout>;
