@@ -1,18 +1,49 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
+import { PostcodeClient, PostcodeError } from '@gatepost/client';
+import type { Postcode } from '@gatepost/core';
 import { fill } from './messages.js';
 import { readText, type Reading } from './reading.js';
 import { ENGLISH, type Messages } from './spec-messages.js';
-import { readingNote, readingState, type Note, type State } from './state.js';
-import type { ChangeDetail, ChangeSource } from './types.js';
+import {
+  lookupOutcome,
+  readingNote,
+  readingState,
+  type Note,
+  type Outcome,
+  type State,
+} from './state.js';
+import type { ChangeDetail, ChangeSource, ConfirmDetail, ErrorDetail } from './types.js';
 import { buildView, renderView, type View } from './view.js';
 
 interface Events {
   'gatepost-change': ChangeDetail;
+  'gatepost-confirm': ConfirmDetail;
+  'gatepost-error': ErrorDetail;
 }
 
-// A change of these attributes changes the validity. The others change the view.
-const CHECKED_ATTRIBUTES = new Set(['required', 'legacy']);
+const LEVELS = { level1: 1, level2: 2 } as const;
+
+// A change of these attributes changes the validity or the lookup. The others change the view.
+// A change of `base-url` alone makes a new client and starts no lookup.
+const CHECKED_ATTRIBUTES = new Set(['required', 'api-key', 'confirm', 'legacy']);
+
+/** The three values that identify a lookup: the postcode, the level and the key. */
+interface Asked {
+  readonly code: string;
+  readonly level: 1 | 2;
+  readonly key: string;
+}
+
+function sameAsked(left: Asked | null, right: Asked | null): boolean {
+  return (
+    left !== null &&
+    right !== null &&
+    left.code === right.code &&
+    left.level === right.level &&
+    left.key === right.key
+  );
+}
 
 // A server has no HTMLElement. Object stands in, so a server can import the module, and the
 // guard in index.ts keeps the server from defining the element.
@@ -44,7 +75,8 @@ function isSubmitButton(element: Element): element is HTMLButtonElement | HTMLIn
 
 /**
  * The postcode field, `<gatepost-postcode-field>`. A plain HTML form submits its form value: the
- * canonical form of the postcode. It checks the format offline.
+ * canonical form of the postcode. It checks the format offline. With a publishable key in
+ * `api-key`, it also asks the gateway about each whole postcode.
  *
  * @example
  * ```html
@@ -129,7 +161,15 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   static readonly formAssociated = true;
 
   /** The attributes that change the field when a page sets them. */
-  static readonly observedAttributes: readonly string[] = ['label', 'value', 'required', 'legacy'];
+  static readonly observedAttributes: readonly string[] = [
+    'label',
+    'value',
+    'required',
+    'api-key',
+    'base-url',
+    'confirm',
+    'legacy',
+  ];
 
   readonly #internals: ElementInternals;
   readonly #view: View;
@@ -139,6 +179,14 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   #connected = false;
   #dirty = false;
   #errorsShown = false;
+  #outcome: Outcome | null = null;
+  #client: PostcodeClient | null = null;
+  #keyRefused = false;
+  #work: AbortController | null = null;
+  // The lookup in progress, and the last one that the gateway answered.
+  #asked: Asked | null = null;
+  #remembered: Asked | null = null;
+  #lastText = '';
 
   /** Builds the shadow tree. The browser calls it when it creates the element. */
   constructor() {
@@ -239,7 +287,19 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   /** Reads the settings and checks the text. The browser calls it on insertion. */
   connectedCallback(): void {
     this.#connected = true;
+    this.#makeClient();
     this.#refresh();
+  }
+
+  /** Cancels any request and forgets its outcome. The browser calls it on removal. */
+  disconnectedCallback(): void {
+    this.#connected = false;
+    this.#work?.abort();
+    this.#work = null;
+    this.#asked = null;
+    this.#remembered = null;
+    this.#outcome = null;
+    this.#render();
   }
 
   /**
@@ -254,6 +314,9 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     }
     if (!this.#connected) {
       return;
+    }
+    if (name === 'api-key' || name === 'base-url') {
+      this.#makeClient();
     }
     if (defaultText || CHECKED_ATTRIBUTES.has(name)) {
       this.#refresh();
@@ -299,6 +362,32 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     return this.getAttribute('legacy') === 'reject' ? 'reject' : 'accept';
   }
 
+  get #level(): 1 | 2 | null {
+    const confirm = this.getAttribute('confirm') ?? 'level1';
+    return confirm === 'level1' || confirm === 'level2' ? LEVELS[confirm] : null;
+  }
+
+  #makeClient(): void {
+    const apiKey = this.getAttribute('api-key');
+    const baseUrl = this.getAttribute('base-url');
+    this.#client = null;
+    this.#keyRefused = false;
+    if (apiKey === null || apiKey === '') {
+      return;
+    }
+    try {
+      this.#client = new PostcodeClient(baseUrl === null ? { apiKey } : { apiKey, baseUrl });
+    } catch (error) {
+      // The client throws a TypeError for a secret key in a web page (SEC-1).
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+      this.#keyRefused = true;
+      // eslint-disable-next-line no-console -- spec/field.md asks for one error for the developer.
+      console.error('gatepost-postcode-field: api-key holds a secret key. Use a publishable key.');
+    }
+  }
+
   #update(source: ChangeSource, accuracyM: number | null): void {
     const before = this.#value;
     this.#dirty = true;
@@ -309,9 +398,21 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     }
   }
 
-  // The text or a setting changed: read the text again.
+  // The lookup that the text and the settings call for, or null when they call for none.
+  #wanted(reading: Reading): Asked | null {
+    const level = this.#level;
+    const key = this.getAttribute('api-key') ?? '';
+    if (reading.kind !== 'postcode' || !this.#connected || level === null || key === '') {
+      return null;
+    }
+    return { code: reading.postcode.canonical, level, key };
+  }
+
+  // The text or a setting changed: read the text again, and start a lookup when it parses.
   #refresh(): void {
     const text = this.#view.input.value;
+    const textChanged = text !== this.#lastText;
+    this.#lastText = text;
     const reading = readText(text);
     this.#reading = reading;
     if (reading.kind === 'postcode') {
@@ -323,7 +424,30 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     }
     this.#internals.setFormValue(this.#value, text);
     this.#setValidity();
+    this.#startLookup(reading, textChanged);
     this.#render();
+  }
+
+  // A lookup that matches the one in progress or the remembered one stays. Any other change
+  // cancels the lookup in progress and forgets its outcome, except a location outcome, which
+  // lasts until the text changes.
+  #startLookup(reading: Reading, textChanged: boolean): void {
+    const state = this.#outcome?.state;
+    if ((state === 'coarse' || state === 'no-location') && !textChanged) {
+      return;
+    }
+    const wanted = this.#wanted(reading);
+    if (sameAsked(wanted, this.#asked) || sameAsked(wanted, this.#remembered)) {
+      return;
+    }
+    this.#work?.abort();
+    this.#work = null;
+    this.#asked = null;
+    this.#remembered = null;
+    this.#outcome = null;
+    if (wanted !== null && reading.kind === 'postcode') {
+      void this.#lookUp(reading.postcode, wanted);
+    }
   }
 
   #setValidity(): void {
@@ -384,6 +508,57 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     }
   }
 
+  async #lookUp(postcode: Postcode, asked: Asked): Promise<void> {
+    if (this.#keyRefused) {
+      this.#outcome = { state: 'error', note: { key: 'secret_key' } };
+      this.#raise('gatepost-error', { code: 'secret_key' });
+      return;
+    }
+    if (this.#client === null) {
+      return;
+    }
+    const work = this.#startWork({ state: 'checking', note: { key: 'checking' } });
+    this.#asked = asked;
+    try {
+      const lookup = await this.#client.lookup(postcode, {
+        level: asked.level,
+        signal: work.signal,
+      });
+      if (work.signal.aborted) {
+        return;
+      }
+      this.#remembered = asked;
+      this.#finish(lookupOutcome(lookup));
+      if (lookup.valid) {
+        this.#raise('gatepost-confirm', { lookup });
+      }
+    } catch (error) {
+      if (work.signal.aborted) {
+        return;
+      }
+      if (!(error instanceof PostcodeError)) {
+        throw error;
+      }
+      this.#finish({ state: 'error', note: { key: 'check_failed' } });
+      this.#raise('gatepost-error', { code: error.code });
+    }
+  }
+
+  #startWork(outcome: Outcome): AbortController {
+    this.#work?.abort();
+    const work = new AbortController();
+    this.#work = work;
+    this.#outcome = outcome;
+    return work;
+  }
+
+  #finish(outcome: Outcome): void {
+    this.#work = null;
+    this.#asked = null;
+    this.#outcome = outcome;
+    this.#render();
+  }
+
   // The events bubble, so a page can listen on the form for each field in it.
   #raise<Type extends keyof Events>(type: Type, detail: Events[Type]): void {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
@@ -395,14 +570,14 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
 
   #state(): State {
     const required = this.hasAttribute('required');
-    return readingState(this.#reading, this.#errorsShown, required);
+    return this.#outcome?.state ?? readingState(this.#reading, this.#errorsShown, required);
   }
 
   #noteText(state: State): string {
     if (state === 'idle' || state === 'typing') {
       return '';
     }
-    return this.#text(readingNote(this.#reading, this.#legacy));
+    return this.#text(this.#outcome?.note ?? readingNote(this.#reading, this.#legacy));
   }
 
   #suggestionText(state: State): string | null {

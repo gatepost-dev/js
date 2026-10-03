@@ -12,7 +12,13 @@ import { PostcodeFieldElement } from './element.js';
  */
 export { PostcodeFieldElement };
 export type { MessageKey, Messages } from './spec-messages.js';
-export type { ChangeDetail, ChangeSource } from './types.js';
+export type {
+  ChangeDetail,
+  ChangeSource,
+  ConfirmDetail,
+  ErrorDetail,
+  FieldErrorCode,
+} from './types.js';
 export { SPEC_VERSION } from './version.js';
 
 // The one global change of the package (PERF-2). A server has no registry, and a page that loads

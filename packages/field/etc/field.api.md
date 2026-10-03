@@ -4,7 +4,9 @@
 
 ```ts
 
+import { LookupResult } from '@gatepost/client';
 import { Postcode } from '@gatepost/core';
+import { PostcodeErrorCode } from '@gatepost/client';
 
 // @public
 export interface ChangeDetail {
@@ -16,6 +18,19 @@ export interface ChangeDetail {
 
 // @public
 export type ChangeSource = "typed" | "pasted" | "suggestion" | "gps";
+
+// @public
+export interface ConfirmDetail {
+    readonly lookup: LookupResult;
+}
+
+// @public
+export interface ErrorDetail {
+    readonly code: FieldErrorCode;
+}
+
+// @public
+export type FieldErrorCode = PostcodeErrorCode | "secret_key" | "gps_denied" | "gps_unavailable";
 
 // @public
 export type MessageKey = "label" | "hint" | "empty" | "bad_character" | "bad_length" | "unknown_state" | "bad_lga" | "bad_area" | "bad_unit" | "suggestion" | "use_suggestion" | "legacy_accepted" | "legacy_rejected" | "valid" | "checking" | "not_found" | "confirmed" | "confirmed_place" | "check_failed" | "secret_key" | "use_location" | "locating" | "gps_coarse" | "gps_not_found" | "gps_denied" | "gps_unavailable";

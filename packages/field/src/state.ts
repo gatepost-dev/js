@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
+import type { AdministrativeAddress, LookupResult } from '@gatepost/client';
 import { stateName, type Postcode } from '@gatepost/core';
 import { keyForReading } from './messages.js';
 import type { Reading } from './reading.js';
@@ -32,6 +33,16 @@ export type State =
 export interface Note {
   readonly key: MessageKey;
   readonly values?: Readonly<Record<string, string | number>>;
+}
+
+/**
+ * What a lookup or a location request found. It shows until the text changes.
+ *
+ * @internal
+ */
+export interface Outcome {
+  readonly state: State;
+  readonly note: Note;
 }
 
 const WHOLE_LENGTH = 11;
@@ -78,4 +89,41 @@ export function readingNote(reading: Reading, legacy: 'accept' | 'reject'): Note
     return { key, values: { state: nameOfState(reading.postcode) } };
   }
   return reading.kind === 'error' ? { key, values: { count: reading.count } } : { key };
+}
+
+interface Place {
+  readonly locality: string;
+  readonly lga: string;
+  readonly state: string;
+}
+
+function placeOf(address: AdministrativeAddress | null): Place | null {
+  if (address === null) {
+    return null;
+  }
+  const { localityName, lgaName, stateName: name } = address;
+  if (localityName === null || lgaName === null || name === null) {
+    return null;
+  }
+  return { locality: localityName, lga: lgaName, state: name };
+}
+
+/**
+ * Gives the outcome of a lookup. The names of the place show only when the lookup gave all
+ * three, and the house address never shows.
+ *
+ * @param lookup - The lookup result.
+ * @returns The state `confirmed` or `not-found`, with its message.
+ * @internal
+ */
+export function lookupOutcome(lookup: LookupResult): Outcome {
+  if (!lookup.valid) {
+    return { state: 'not-found', note: { key: 'not_found' } };
+  }
+  const place = placeOf(lookup.administrativeAddress);
+  if (place === null) {
+    const values = { state: nameOfState(lookup.postcode) };
+    return { state: 'confirmed', note: { key: 'confirmed', values } };
+  }
+  return { state: 'confirmed', note: { key: 'confirmed_place', values: { ...place } } };
 }
