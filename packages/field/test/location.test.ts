@@ -72,6 +72,13 @@ function refuseLocation(code: number): void {
   });
 }
 
+// Lets every pending promise and timer of the page run before a test checks that nothing happened.
+async function settle(): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 function listen(target: EventTarget): ErrorDetail[] {
   const details: ErrorDetail[] = [];
   target.addEventListener('gatepost-error', (event) => {
@@ -314,7 +321,35 @@ describe('the location button', () => {
     await vi.waitFor(() => {
       expect(message()).toBe(UNAVAILABLE);
     });
-    expect(errors).toEqual([]);
+    expect(errors).toEqual([{ code: 'gps_unavailable' }]);
+  });
+
+  it('gives gps_denied to a refusal that is a plain object with the code 1', async () => {
+    vi.spyOn(navigator.geolocation, 'getCurrentPosition').mockImplementation(
+      (_success, failure) => {
+        failure?.({ code: 1, message: 'Blocked.' } as GeolocationPositionError);
+      },
+    );
+    const { form, location, message } = mount(FIELD);
+    const errors = listen(form);
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe('We cannot use your location. Type your postcode.');
+    });
+    expect(errors).toEqual([{ code: 'gps_denied' }]);
+  });
+
+  it('gives gps_unavailable to a device call that is missing', async () => {
+    vi.spyOn(navigator.geolocation, 'getCurrentPosition').mockImplementation(() => {
+      throw new TypeError('getCurrentPosition is not a function');
+    });
+    const { form, location, message } = mount(FIELD);
+    const errors = listen(form);
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe(UNAVAILABLE);
+    });
+    expect(errors).toEqual([{ code: 'gps_unavailable' }]);
   });
 
   it('shows the state GPS locating, and typing cancels it', async () => {
@@ -326,7 +361,7 @@ describe('the location button', () => {
     await expectAccessible();
     await userEvent.type(input, 'FC');
     place(5);
-    await Promise.resolve();
+    await settle();
     expect(input.value).toBe('FC');
     expect(message()).toBe('');
     expect(fetch).not.toHaveBeenCalled();
@@ -343,6 +378,68 @@ describe('the location button', () => {
     await vi.waitFor(() => {
       expect(message()).toBe(NOT_FOUND);
     });
+  });
+
+  it('raises change after the field shows the coarse state', async () => {
+    placeDevice(40);
+    scriptGateway(await fixture('reverse/unit'));
+    const { form, location, message } = mount(FIELD);
+    const seen: string[] = [];
+    form.addEventListener('gatepost-change', () => {
+      seen.push(message());
+    });
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe(COARSE);
+    });
+    expect(seen).toEqual([COARSE]);
+  });
+
+  it('ends a location request when the field leaves the page', async () => {
+    const place = holdDevice();
+    const { requests } = scriptGateway();
+    const { form, field, input, location, message } = mount(FIELD);
+    await userEvent.click(location);
+    field.remove();
+    place(5);
+    await settle();
+    form.append(field);
+    expect(input.value).toBe('');
+    expect(message()).toBe('');
+    expect(requests).toEqual([]);
+  });
+
+  it('cancels the first request when the user presses the button again', async () => {
+    const places: ((position: GeolocationPosition) => void)[] = [];
+    vi.spyOn(navigator.geolocation, 'getCurrentPosition').mockImplementation((success) => {
+      places.push(success);
+    });
+    const { requests } = scriptGateway(await fixture('reverse/unit'));
+    const { input, location, message } = mount(FIELD);
+    await userEvent.click(location);
+    await userEvent.click(location);
+    expect(places).toHaveLength(2);
+    places[0]?.({ coords: { latitude: 9, longitude: 7, accuracy: 40 } } as GeolocationPosition);
+    await settle();
+    expect(input.value).toBe('');
+    expect(requests).toEqual([]);
+    places[1]?.({ coords: { latitude: 9, longitude: 7, accuracy: 40 } } as GeolocationPosition);
+    await vi.waitFor(() => {
+      expect(message()).toBe(COARSE);
+    });
+    expect(requests).toHaveLength(1);
+  });
+
+  it('keeps the coarse message when required changes', async () => {
+    placeDevice(40);
+    scriptGateway(await fixture('reverse/unit'));
+    const { field, location, message } = mount(FIELD);
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe(COARSE);
+    });
+    field.setAttribute('required', '');
+    expect(message()).toBe(COARSE);
   });
 
   it('turns off with the form', () => {
@@ -415,8 +512,7 @@ describe('a location request and the settings', () => {
     await userEvent.click(location);
     field.removeAttribute('api-key');
     place(5);
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
     expect(message()).toBe('');
     expect(errors).toEqual([]);
     expect(fetch).not.toHaveBeenCalled();

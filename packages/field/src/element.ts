@@ -5,6 +5,7 @@ import type { Postcode } from '@gatepost/core';
 import { findFix } from './location.js';
 import { fill } from './messages.js';
 import { readText, type Reading } from './reading.js';
+import { Requests, type Asked } from './requests.js';
 import { ENGLISH, type Messages } from './spec-messages.js';
 import {
   lookupOutcome,
@@ -28,23 +29,6 @@ const LEVELS = { level1: 1, level2: 2 } as const;
 // A change of these attributes changes the validity or the lookup. The others change the view.
 // A change of `base-url` alone makes a new client and starts no lookup.
 const CHECKED_ATTRIBUTES = new Set(['required', 'api-key', 'confirm', 'legacy']);
-
-/** The three values that identify a lookup: the postcode, the level and the key. */
-interface Asked {
-  readonly code: string;
-  readonly level: 1 | 2;
-  readonly key: string;
-}
-
-function sameAsked(left: Asked | null, right: Asked | null): boolean {
-  return (
-    left !== null &&
-    right !== null &&
-    left.code === right.code &&
-    left.level === right.level &&
-    left.key === right.key
-  );
-}
 
 // A server has no HTMLElement. Object stands in, so a server can import the module, and the
 // guard in index.ts keeps the server from defining the element.
@@ -181,13 +165,9 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   #connected = false;
   #dirty = false;
   #errorsShown = false;
-  #outcome: Outcome | null = null;
+  readonly #requests = new Requests();
   #client: PostcodeClient | null = null;
   #keyRefused = false;
-  #work: AbortController | null = null;
-  // The lookup in progress, and the last one that the gateway answered.
-  #asked: Asked | null = null;
-  #remembered: Asked | null = null;
   #lastText = '';
 
   /** Builds the shadow tree. The browser calls it when it creates the element. */
@@ -299,11 +279,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   /** Cancels any request and forgets its outcome. The browser calls it on removal. */
   disconnectedCallback(): void {
     this.#connected = false;
-    this.#work?.abort();
-    this.#work = null;
-    this.#asked = null;
-    this.#remembered = null;
-    this.#outcome = null;
+    this.#requests.cancel();
     this.#render();
   }
 
@@ -393,10 +369,12 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     }
   }
 
-  #update(source: ChangeSource, accuracyM: number | null): void {
+  // `settle` runs after the refresh and before the event, so a listener sees the final state.
+  #update(source: ChangeSource, accuracyM: number | null, settle?: () => void): void {
     const before = this.#value;
     this.#dirty = true;
     this.#refresh();
+    settle?.();
     if (this.#value !== before) {
       const postcode = this.#reading.kind === 'postcode' ? this.#reading.postcode : null;
       this.#raise('gatepost-change', { value: this.#value, postcode, source, accuracyM });
@@ -433,31 +411,14 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     this.#render();
   }
 
-  // A lookup that matches the one in progress or the remembered one stays. Any other change
-  // cancels the lookup in progress and forgets its outcome, except a location request and its
-  // outcome, which last until the text changes. A location request in progress starts no lookup.
+  // A change that the requests do not keep cancels them. Then a whole postcode gets a lookup.
   #startLookup(reading: Reading, textChanged: boolean): void {
-    if (!textChanged && this.#locationOutcome()) {
-      return;
-    }
     const wanted = this.#wanted(reading);
-    if (sameAsked(wanted, this.#asked) || sameAsked(wanted, this.#remembered)) {
-      return;
+    if (!this.#requests.keeps(wanted, textChanged) && wanted !== null) {
+      if (reading.kind === 'postcode') {
+        void this.#lookUp(reading.postcode, wanted);
+      }
     }
-    this.#work?.abort();
-    this.#work = null;
-    this.#asked = null;
-    this.#remembered = null;
-    this.#outcome = null;
-    if (wanted !== null && reading.kind === 'postcode') {
-      void this.#lookUp(reading.postcode, wanted);
-    }
-  }
-
-  // True while a location request is in progress, and after it, until the text changes.
-  #locationOutcome(): boolean {
-    const state = this.#outcome?.state;
-    return state === 'locating' || state === 'coarse' || state === 'no-location';
   }
 
   #setValidity(): void {
@@ -520,7 +481,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
 
   async #lookUp(postcode: Postcode, asked: Asked): Promise<void> {
     if (this.#keyRefused) {
-      this.#outcome = { state: 'error', note: { key: 'secret_key' } };
+      this.#requests.outcome = { state: 'error', note: { key: 'secret_key' } };
       // The event waits for the render and for the change that caused the lookup.
       queueMicrotask(() => {
         this.#raise('gatepost-error', { code: 'secret_key' });
@@ -530,8 +491,8 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     if (this.#client === null) {
       return;
     }
-    const work = this.#startWork({ state: 'checking', note: { key: 'checking' } });
-    this.#asked = asked;
+    const work = this.#requests.start({ state: 'checking', note: { key: 'checking' } });
+    this.#requests.asked = asked;
     try {
       const lookup = await this.#client.lookup(postcode, {
         level: asked.level,
@@ -540,7 +501,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
       if (work.signal.aborted) {
         return;
       }
-      this.#remembered = asked;
+      this.#requests.remembered = asked;
       this.#finish(lookupOutcome(lookup));
       if (lookup.valid) {
         this.#raise('gatepost-confirm', { lookup });
@@ -563,9 +524,8 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     if (this.#client === null) {
       return;
     }
-    const work = this.#startWork({ state: 'locating', note: { key: 'locating' } });
-    this.#asked = null;
-    this.#remembered = null;
+    const work = this.#requests.start({ state: 'locating', note: { key: 'locating' } });
+    this.#requests.remembered = null;
     this.#render();
     try {
       const fix = await findFix(() => this.#client, work.signal);
@@ -585,7 +545,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
         this.#raise('gatepost-error', { code: 'secret_key' });
       } else {
         // The key is gone: nothing is sent, and the field shows the state that its text gives.
-        this.#endRequest();
+        this.#requests.end();
         this.#render();
       }
     } catch (error) {
@@ -600,32 +560,18 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   #placePostcode(postcode: Postcode, accuracyM: number): void {
     const { input } = this.#view;
     const whole = postcode.precision === 'unit';
-    this.#endRequest();
+    this.#requests.end();
     input.value = whole ? postcode.display : `${postcode.display} `;
-    this.#update('gps', accuracyM);
-    if (!whole) {
-      this.#finish({ state: 'coarse', note: { key: 'gps_coarse' } });
-      input.focus();
-    }
-  }
-
-  #startWork(outcome: Outcome): AbortController {
-    this.#work?.abort();
-    const work = new AbortController();
-    this.#work = work;
-    this.#outcome = outcome;
-    return work;
-  }
-
-  #endRequest(): void {
-    this.#work = null;
-    this.#asked = null;
-    this.#outcome = null;
+    this.#update('gps', accuracyM, () => {
+      if (!whole) {
+        this.#finish({ state: 'coarse', note: { key: 'gps_coarse' } });
+        input.focus();
+      }
+    });
   }
 
   #finish(outcome: Outcome): void {
-    this.#endRequest();
-    this.#outcome = outcome;
+    this.#requests.finish(outcome);
     this.#render();
   }
 
@@ -640,14 +586,16 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
 
   #state(): State {
     const required = this.hasAttribute('required');
-    return this.#outcome?.state ?? readingState(this.#reading, this.#errorsShown, required);
+    return (
+      this.#requests.outcome?.state ?? readingState(this.#reading, this.#errorsShown, required)
+    );
   }
 
   #noteText(state: State): string {
     if (state === 'idle' || state === 'typing') {
       return '';
     }
-    return this.#text(this.#outcome?.note ?? readingNote(this.#reading, this.#legacy));
+    return this.#text(this.#requests.outcome?.note ?? readingNote(this.#reading, this.#legacy));
   }
 
   #suggestionText(state: State): string | null {

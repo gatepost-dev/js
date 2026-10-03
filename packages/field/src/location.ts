@@ -49,6 +49,11 @@ export function postcodeAtFix(result: ReverseResult, accuracyM: number): Postcod
   return found.segments[precision] === null ? found : truncate(found, precision);
 }
 
+// An extension or a WebView can reject with a plain object, so the code decides, not the type.
+function isRefusal(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 1;
+}
+
 function currentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -97,11 +102,8 @@ export async function findFix(
   try {
     position = await currentPosition();
   } catch (error) {
-    if (!(error instanceof GeolocationPositionError)) {
-      // Any other failure of the device call ends the request too, and it has no event code.
-      return { kind: 'failed', key: 'gps_unavailable', code: null };
-    }
-    const key = error.code === error.PERMISSION_DENIED ? 'gps_denied' : 'gps_unavailable';
+    const refused = isRefusal(error);
+    const key = refused ? 'gps_denied' : 'gps_unavailable';
     return { kind: 'failed', key, code: key };
   }
   signal.throwIfAborted();
