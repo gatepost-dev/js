@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
+import { PostcodeFieldElement } from '../src/index.js';
 import { expectAccessible, mount } from './field.js';
 
 const FIELD = '<gatepost-postcode-field name="postcode"></gatepost-postcode-field>';
@@ -434,5 +435,39 @@ describe('accessibility', () => {
     expect(field.shadowRoot?.activeElement).toBe(suggestion);
     await userEvent.keyboard('{Enter}');
     expect(input.value).toBe('FC 01 Z99 ZZ 01');
+  });
+
+  describe('properties set before the element is defined', () => {
+    // An element of a document with no registry stays plain, so it holds own properties as a
+    // page does before its script defines the field. Adding it to this page upgrades it.
+    function early(properties: Record<string, unknown>): PostcodeFieldElement {
+      const plain = document.implementation.createHTMLDocument('');
+      const field = plain.createElement('gatepost-postcode-field');
+      Object.assign(field, properties);
+      return field as PostcodeFieldElement;
+    }
+
+    it('takes the early messages, and a later assignment still reaches the field', () => {
+      const field = early({ messages: { label: 'Early' } });
+      const form = document.createElement('form');
+      document.body.append(form);
+      form.append(field);
+      expect(Object.hasOwn(field, 'messages')).toBe(false);
+      expect(field.shadowRoot?.querySelector('label')?.textContent).toBe('Early');
+      field.messages = { label: 'Later' };
+      expect(field.shadowRoot?.querySelector('label')?.textContent).toBe('Later');
+      expect(field.messages.label).toBe('Later');
+    });
+
+    it('takes the early value over the value attribute', () => {
+      const field = early({ value: 'fc01z99zz01' });
+      field.setAttribute('value', 'LA');
+      const form = document.createElement('form');
+      document.body.append(form);
+      form.append(field);
+      expect(Object.hasOwn(field, 'value')).toBe(false);
+      expect(field.value).toBe('FC-01-Z99-ZZ-01');
+      expect(field.shadowRoot?.querySelector('input')?.value).toBe('fc01z99zz01');
+    });
   });
 });

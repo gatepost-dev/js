@@ -271,6 +271,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
 
   /** Reads the settings and checks the text. The browser calls it on insertion. */
   connectedCallback(): void {
+    this.#takeEarlyProperties();
     this.#connected = true;
     this.#makeClient();
     this.#refresh();
@@ -336,6 +337,19 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
       this.#dirty = true;
       this.#view.input.value = state;
       this.#refresh();
+    }
+  }
+
+  // A page can set `messages` or `value` before the script defines the element. The property
+  // then sits on the element itself and hides the accessor, so later writes never reach it.
+  // Remove it and set it again through the accessor.
+  #takeEarlyProperties(): void {
+    for (const name of ['messages', 'value']) {
+      if (Object.hasOwn(this, name)) {
+        const early: unknown = Reflect.get(this, name);
+        Reflect.deleteProperty(this, name);
+        Reflect.set(this, name, early);
+      }
     }
   }
 
