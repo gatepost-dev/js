@@ -60,6 +60,34 @@ describe('reverse', () => {
     });
   });
 
+  it.each([
+    ['a latitude that is right and a longitude that is not', 'lat=9&lng=8'],
+    ['a longitude that is right and a latitude that is not', 'lat=8&lng=7'],
+  ])('finds nothing for %s', (_name, query) => {
+    expect(data(sent(ask(`/v1/search/reverse?${query}`)))).toMatchObject({ found: false });
+  });
+
+  it.each([
+    ['0', false],
+    ['1', false],
+    ['4.1', false],
+    ['4.2', true],
+    ['5', true],
+  ])('with a radius of %s m, finds the unit at 4.2 m: %s', (radius, found) => {
+    const body = data(sent(ask(`/v1/search/reverse?lat=9&lng=7&max_distance_m=${radius}`)));
+    expect(body).toMatchObject({ found, radius_m: Number(radius) });
+  });
+
+  it('accepts a radius of 0 at a point with nothing near it', () => {
+    const found = data(sent(ask('/v1/search/reverse?lat=4&lng=3&max_distance_m=0')));
+    expect(found).toMatchObject({ found: false, radius_m: 0 });
+  });
+
+  it('reads a number as decimal text only', () => {
+    expect(sent(ask('/v1/search/reverse?lat=0x9&lng=7')).status).toBe(400);
+    expect(sent(ask('/v1/search/reverse?lat=9&lng=7e0')).status).toBe(200);
+  });
+
   it('lowers a radius above 250 m to 250 m', () => {
     const found = data(sent(ask('/v1/search/reverse?lat=4&lng=3&max_distance_m=900')));
     expect(found).toMatchObject({ radius_m: 250 });
@@ -81,8 +109,13 @@ describe('nearby', () => {
     expect(sent(ask('/v1/search/nearby?lat=9&lng=7&radius=200')).body).toEqual({ data: [] });
   });
 
-  it('answers a point with no longitude with 400', () => {
-    expect(sent(ask('/v1/search/nearby?lat=9')).status).toBe(400);
+  it.each([
+    ['no longitude', 'lat=9'],
+    ['no latitude', 'lng=7'],
+    ['a latitude that is not a number', 'lat=north&lng=7'],
+    ['a negative radius', 'lat=9&lng=7&radius=-1'],
+  ])('answers %s with 400', (_name, query) => {
+    expect(sent(ask(`/v1/search/nearby?${query}`)).status).toBe(400);
   });
 });
 
@@ -112,5 +145,19 @@ describe('autocomplete', () => {
     ['a q with a character that no postcode has', 'F%21'],
   ])('answers %s with 400', (_name, q) => {
     expect(sent(ask(`/v1/search/autocomplete?q=${q}`)).status).toBe(400);
+  });
+});
+
+describe('autocomplete with a state list out of order', () => {
+  it('sorts the suggestions and lists each code once', () => {
+    const files = { ...FILES, states: ['EK', 'ED', 'EK', 'EB'] };
+    const request = mockRequest('/v1/search/autocomplete?q=E', {
+      headers: { 'x-api-key': 'nipost_test_mock_l1' },
+    });
+    const body = data(sent(createGateway(files, () => 0)(request)));
+    expect(body).toEqual({
+      segment: 'state',
+      suggestions: [{ code: 'EB' }, { code: 'ED' }, { code: 'EK' }],
+    });
   });
 });

@@ -22,6 +22,21 @@ export function compactCode(text: string): string {
   return text.toUpperCase().replace(SEPARATORS, '');
 }
 
+const DECIMAL = /^[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
+
+/**
+ * Reads a number from decimal text, so that `9`, `9.0` and `9e0` give the same value. Other
+ * forms that `Number()` accepts, such as `0x9`, are not numbers here.
+ *
+ * @param text - The text of a query value.
+ * @returns The number, or null when the text is not a decimal number.
+ * @internal
+ */
+export function decimalNumber(text: string): number | null {
+  const parsed = DECIMAL.test(text.trim()) ? Number(text) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function segmentPasses(rule: SegmentRule, text: string): boolean {
   const pattern = CHARACTERS.get(rule.characters);
   return pattern?.test(text) === true && (rule.minimum === null || Number(text) >= rule.minimum);

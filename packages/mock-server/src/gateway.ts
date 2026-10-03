@@ -67,7 +67,7 @@ export function createGateway(
     const left = count(apiKey);
     return withHeaders(keyedReply(request, files, key, left), {
       'X-RateLimit-Limit': String(files.requestsPerMinute),
-      'X-RateLimit-Remaining': String(Math.max(left, 0)),
+      'X-RateLimit-Remaining': String(key.rateLimited ? 0 : Math.max(left, 0)),
     });
   };
 }

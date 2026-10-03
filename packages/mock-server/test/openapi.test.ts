@@ -14,6 +14,8 @@ import { FILES, mockRequest, SPEC_DIR, sent } from './mock-request.ts';
 interface ResponseObject {
   readonly $ref?: string;
   readonly content?: unknown;
+  readonly headers?: Readonly<Record<string, { readonly $ref: string }>>;
+  readonly 'x-gatepost-error-codes'?: Readonly<Record<string, string>>;
 }
 
 interface Operation {
@@ -26,30 +28,67 @@ interface Operation {
 
 const openapi = parse(readFileSync(join(SPEC_DIR, 'openapi/gateway.completed.yaml'), 'utf8')) as {
   paths: Record<string, Record<string, Operation>>;
-  components: { responses: Record<string, ResponseObject> };
+  components: {
+    responses: Record<string, ResponseObject>;
+    headers: Record<string, { schema: Record<string, unknown> }>;
+  };
   'x-gatepost-unknown-path': { responses: Record<string, ResponseObject> };
 };
 const ajv = new Ajv2020({ strict: false });
 ajv.addSchema(openapi, 'openapi');
 
 // The response of the operation and the status, or the file's answer to a path that it lacks.
-function bodySchema(path: string, method: string, status: number): string {
+function declaredResponse(path: string, method: string, status: number): ResponseObject {
   const responses =
     openapi.paths[path]?.[method]?.responses ?? openapi['x-gatepost-unknown-path'].responses;
   const response = responses[String(status)];
   const shared = response?.$ref?.split('/').at(-1);
-  const content =
-    shared === undefined ? response?.content : openapi.components.responses[shared]?.content;
-  const media = (content as { 'application/json': { schema: { $ref: string } } })[
+  const declared = shared === undefined ? response : openapi.components.responses[shared];
+  if (declared === undefined) {
+    throw new Error(`The OpenAPI file declares no ${String(status)} for ${method} ${path}.`);
+  }
+  return declared;
+}
+
+function bodySchema(declared: ResponseObject): string {
+  const media = (declared.content as { 'application/json': { schema: { $ref: string } } })[
     'application/json'
   ];
   return `openapi${media.schema.$ref}`;
+}
+
+// Each header that the response declares is there and has a value of the declared type.
+function expectDeclaredHeaders(
+  declared: ResponseObject,
+  headers: Readonly<Record<string, string>>,
+): void {
+  for (const [name, reference] of Object.entries(declared.headers ?? {})) {
+    const value = headers[name];
+    if (name !== 'Retry-After') {
+      expect(value, `${name} is missing`).toBeDefined();
+    }
+    if (value !== undefined) {
+      const header = openapi.components.headers[reference.$ref.split('/').at(-1) ?? ''];
+      expect(ajv.validate(header?.schema ?? false, Number(value)), `${name}: ${value}`).toBe(true);
+    }
+  }
+}
+
+// An error code is one of the codes that the response lists.
+function expectDeclaredCode(declared: ResponseObject, body: unknown): void {
+  const codes = declared['x-gatepost-error-codes'];
+  const code = (body as { error?: { code?: string } }).error?.code;
+  if (codes !== undefined && code !== undefined) {
+    expect(Object.keys(codes)).toContain(code);
+  }
 }
 
 interface Probe {
   readonly target: string;
   readonly method?: string;
   readonly key?: string;
+  readonly origin?: string;
+  readonly anonymous?: boolean;
   readonly body?: string;
 }
 
@@ -76,16 +115,37 @@ const PROBES: readonly Probe[] = [
   { target: '/v1/assembly/disassemble?code=FC01Z99ZZ01' },
   { target: '/v1/assembly/disassemble?code=HELLO' },
   { target: '/v1/widget/lookup' },
+  { target: '/v1/lookup?code=FC01Z99ZZ01', anonymous: true },
+  { target: '/v1/lookup?code=FC01Z99ZZ01', key: 'nipost_pk_test_mock', origin: 'http://x.test' },
+  { target: '/v1/search/reverse?lat=9', key: 'nipost_test_mock_l1' },
+  { target: '/v1/search/reverse?lat=9&lng=7', key: 'nipost_test_mock_rate_limited' },
+  { target: '/v1/search/nearby?lat=9' },
+  { target: '/v1/search/autocomplete?q=FC01Z99ZZ011' },
+  { target: '/v1/assembly/assemble', method: 'POST', body: '{}' },
 ];
 
 describe('the bodies of the mock server', () => {
   it.each(PROBES)('match the OpenAPI file for $target', (probe) => {
     const method = probe.method ?? 'GET';
-    const headers = { 'x-api-key': probe.key ?? 'nipost_test_mock_l3' };
+    const headers: Record<string, string> = {};
+    if (probe.anonymous !== true) {
+      headers['x-api-key'] = probe.key ?? 'nipost_test_mock_l3';
+    }
+    if (probe.origin !== undefined) {
+      headers['origin'] = probe.origin;
+    }
     const request = mockRequest(probe.target, { method, headers, body: probe.body ?? '' });
     const response = sent(createGateway(FILES, () => 0)(request));
-    const validate = ajv.getSchema(bodySchema(request.path, method.toLowerCase(), response.status));
+    const declared = declaredResponse(request.path, method.toLowerCase(), response.status);
+    const validate = ajv.getSchema(bodySchema(declared));
     expect(validate?.(response.body), JSON.stringify(validate?.errors)).toBe(true);
+
+    expectDeclaredHeaders(declared, response.headers);
+    // A reply with no key declares no rate-limit header, and the mock server sends none.
+    if (probe.anonymous === true) {
+      expect(Object.keys(response.headers)).not.toContain('X-RateLimit-Limit');
+    }
+    expectDeclaredCode(declared, response.body);
   });
 });
 

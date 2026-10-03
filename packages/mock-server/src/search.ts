@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
 import { knownUnit } from './lookup.ts';
-import { activeSegment, compactCode } from './postcodes.ts';
+import { activeSegment, compactCode, decimalNumber } from './postcodes.ts';
 import { jsonReply, type MockRequest, type Reply } from './reply.ts';
 import { fixtureData, fixtureReply, type SpecFiles } from './spec-files.ts';
 
@@ -11,9 +11,7 @@ const PLACES = ['reverse/unit', 'reverse/area'] as const;
 const CODE_CHARACTERS = /^[A-Z0-9]+$/;
 
 function numberIn(query: URLSearchParams, name: string): number | null {
-  const raw = query.get(name)?.trim() ?? '';
-  const parsed = Number(raw);
-  return raw === '' || !Number.isFinite(parsed) ? null : parsed;
+  return decimalNumber(query.get(name) ?? '');
 }
 
 function radiusIn(query: URLSearchParams, name: string, fallback: number): number | null {
@@ -29,10 +27,19 @@ function samePlace(files: SpecFiles, name: string, lng: number, lat: number): bo
   return Array.isArray(coordinate) && coordinate[0] === lng && coordinate[1] === lat;
 }
 
+// The unit fixture holds the distance to its unit. A radius under it leaves the unit out of range.
+function inRange(files: SpecFiles, name: string, radius: number): boolean {
+  const unit = fixtureData(files, name, 'unit');
+  const distance = (unit as { distance_m?: unknown } | undefined)?.distance_m;
+  return typeof distance !== 'number' || distance <= radius;
+}
+
 /**
  * Answers `GET /v1/search/reverse`. A point that a fixture names gets that fixture. Any other
  * point gets the fixture for no postcode in range. The body echoes the coordinate as
- * [lng, lat] and gives the radius that the mock server applied.
+ * [lng, lat] and gives the radius that the mock server applied. A unit farther than the radius
+ * is out of range. The ranges of lat and lng are a client rule, so the mock server accepts
+ * any value.
  *
  * @param request - The request.
  * @param files - The spec files.
@@ -46,8 +53,9 @@ export function reverse(request: MockRequest, files: SpecFiles): Reply {
   if (lat === null || lng === null || radius === null) {
     return fixtureReply(files, 'errors/invalid-request');
   }
-  const name = PLACES.find((place) => samePlace(files, place, lng, lat)) ?? 'reverse/not-found';
+  const place = PLACES.find((name) => samePlace(files, name, lng, lat));
   const radiusM = Math.min(radius, REVERSE_RADIUS_M.maximum);
+  const name = place === undefined || !inRange(files, place, radiusM) ? 'reverse/not-found' : place;
   return fixtureReply(files, name, { coordinate: [lng, lat], radius_m: radiusM });
 }
 

@@ -96,4 +96,33 @@ describe('lookup', () => {
     const response = lookUp(query);
     expect([response.status, errorCode(response)]).toEqual([400, 'invalid_request']);
   });
+
+  it('refuses a level above the key before it checks credits, and scope before level', () => {
+    const credits = lookUp('code=FC01Z99ZZ01&level=4', 'nipost_test_mock_no_credits');
+    expect([credits.status, errorCode(credits)]).toEqual([403, 'level_not_granted']);
+    const scope = lookUp('code=FC01Z99ZZ01&level=4', 'nipost_test_mock_no_scope');
+    expect([scope.status, errorCode(scope)]).toEqual([403, 'scope_not_granted']);
+  });
+
+  it.each(['level=02', 'level=2.0'])('reads %s as level 2, by value', (query) => {
+    const response = lookUp(`code=FC01Z99ZZ01&${query}`);
+    expect(response.body).toMatchObject({ data: { recent_house_address: {} } });
+  });
+
+  it.each(['12', '1x', 'x1', '1.5', '-1', '0x2', ''])(
+    'answers a level of "%s" with 400',
+    (level) => {
+      const response = lookUp(`code=FC01Z99ZZ01&level=${level}`);
+      expect([response.status, errorCode(response)]).toEqual([400, 'invalid_request']);
+    },
+  );
+
+  it.each([
+    ['a digit in the state', 'F101Z99ZZ01'],
+    ['a letter in the local government area', 'FCAB' + 'Z99ZZ01'],
+    ['a digit in the area', 'FC01Z99Z101'],
+    ['a letter in the unit', 'FC01Z99ZZA1'],
+  ])('gives invalid for %s', (_name, code) => {
+    expect(lookUp(`code=${code}`).body).toMatchObject({ data: { status: 'invalid' } });
+  });
 });
