@@ -57,6 +57,23 @@ export interface LookupResult {
 export type LookupStatus = "valid" | "invalid" | "not_found" | "restricted";
 
 // @public
+export class PostcodeClient {
+    constructor(options?: ClientOptions);
+    autocomplete(q: string, options?: Readonly<{
+        signal?: AbortSignal;
+    }>): Promise<AutocompleteResult>;
+    clearCache(): void;
+    lookup(code: string | Postcode, options?: Readonly<{
+        level?: LookupLevel;
+        signal?: AbortSignal;
+    }>): Promise<LookupResult>;
+    reverse(lat: number, lng: number, options?: Readonly<{
+        maxDistanceM?: number;
+        signal?: AbortSignal;
+    }>): Promise<ReverseResult>;
+}
+
+// @public
 export class PostcodeError extends Error {
     constructor(code: PostcodeErrorCode, message: string, details?: Readonly<{
         status?: number | null;

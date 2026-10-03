@@ -9,6 +9,7 @@
  *
  * @packageDocumentation
  */
+export { PostcodeClient } from './client.js';
 export { PostcodeError } from './error.js';
 export type {
   AdministrativeAddress,
