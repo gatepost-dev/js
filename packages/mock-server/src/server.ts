@@ -62,16 +62,36 @@ async function readRequest(incoming: IncomingMessage): Promise<MockRequest> {
   };
 }
 
+// Waits for a delay. It ends early, with false, when the server closes or the client leaves.
+async function waited(
+  ms: number,
+  outgoing: ServerResponse,
+  stopping: AbortSignal,
+): Promise<boolean> {
+  const left = new AbortController();
+  outgoing.once('close', () => {
+    left.abort();
+  });
+  try {
+    await sleep(ms, undefined, { signal: AbortSignal.any([stopping, left.signal]) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function send(
   incoming: IncomingMessage,
   outgoing: ServerResponse,
   reply: Reply,
-  extraMs: number,
+  wait: { readonly extraMs: number; readonly stopping: AbortSignal },
 ): Promise<void> {
   if (reply.kind === 'hang') {
     return;
   }
-  await sleep(reply.delayMs + extraMs);
+  if (!(await waited(reply.delayMs + wait.extraMs, outgoing, wait.stopping))) {
+    return;
+  }
   if (reply.kind === 'drop') {
     incoming.socket.destroy();
     return;
@@ -79,6 +99,14 @@ async function send(
   const length = String(Buffer.byteLength(reply.body));
   outgoing.writeHead(reply.status, { ...CORS_HEADERS, 'Content-Length': length, ...reply.headers });
   outgoing.end(reply.body);
+}
+
+// The host part of the URL: every address means localhost, and an IPv6 address has brackets.
+function urlHost(host: string): string {
+  if (host === '0.0.0.0' || host === '::') {
+    return 'localhost';
+  }
+  return host.includes(':') ? `[${host}]` : host;
 }
 
 function listen(server: Server, port: number, host: string): Promise<number> {
@@ -116,6 +144,7 @@ export async function startMockServer(options: MockServerOptions = {}): Promise<
   const gateway = createGateway(files, options.now ?? Date.now);
   const play = createScenarioPlayer(files.scenarios);
   const extraMs = options.delayMs ?? 0;
+  const stopping = new AbortController();
   const choose = (request: MockRequest): Reply => {
     const scenario = request.headers['x-scenario-id'];
     return request.method === 'OPTIONS' || scenario === undefined
@@ -124,28 +153,36 @@ export async function startMockServer(options: MockServerOptions = {}): Promise<
   };
   const server = createServer((incoming, outgoing) => {
     readRequest(incoming)
-      .then((request) => send(incoming, outgoing, choose(request), extraMs))
+      .then((request) =>
+        send(incoming, outgoing, choose(request), { extraMs, stopping: stopping.signal }),
+      )
       .catch((error: unknown) => {
         // A broken fixture is a bug in the spec. The test that hit it sees the message.
         const message = error instanceof Error ? error.message : String(error);
         const reply = jsonReply(500, { error: { code: 'mock_error', message } });
-        return send(incoming, outgoing, reply, 0);
+        return send(incoming, outgoing, reply, { extraMs: 0, stopping: stopping.signal });
+      })
+      .catch(() => {
+        // The error reply failed too. Close this connection, so that no rejection stays open.
+        incoming.socket.destroy();
       });
   });
   const host = options.host ?? '127.0.0.1';
   const port = await listen(server, options.port ?? 4010, host);
-  return {
-    url: `http://${host === '0.0.0.0' ? 'localhost' : host}:${String(port)}`,
-    close: () =>
-      new Promise((resolve, reject) => {
-        server.closeAllConnections();
-        server.close((error) => {
-          if (error === undefined) {
-            resolve();
-          } else {
-            reject(error);
-          }
-        });
-      }),
+  let closing: Promise<void> | undefined;
+  const close = (): Promise<void> => {
+    closing ??= new Promise((resolve, reject) => {
+      stopping.abort();
+      server.closeAllConnections();
+      server.close((error) => {
+        if (error === undefined) {
+          resolve();
+        } else {
+          reject(error);
+        }
+      });
+    });
+    return closing;
   };
+  return { url: `http://${urlHost(host)}:${String(port)}`, close };
 }

@@ -8,7 +8,8 @@ function mockError(code: string, message: string): Reply {
 
 /**
  * Plays the responses of the contract scenarios. Each run of a scenario keeps its own place
- * in the list of responses, and the last response repeats.
+ * in the list of responses, and the last response repeats. The places stay in memory until the
+ * player goes away, so a long-lived server grows by one entry for each run.
  *
  * @param scenarios - The responses of each scenario, by its id.
  * @returns A function that takes the values of `X-Scenario-Id` and `X-Scenario-Run`, and

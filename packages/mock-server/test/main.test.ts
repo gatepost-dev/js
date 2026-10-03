@@ -72,4 +72,13 @@ describe('the mock server command', () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('/no/such/spec/fixtures');
   });
+
+  it('exits fast on SIGTERM while a delayed response is pending', async () => {
+    const started = performance.now();
+    const result = await run({ PORT: '0', MOCK_DELAY_MS: '5000' }, async (line) => {
+      const url = /http:\/\/\S+/.exec(line)?.[0] ?? '';
+      await fetch(`${url}/healthz`, { signal: AbortSignal.timeout(200) }).catch(() => undefined);
+    });
+    expect([result.code, performance.now() - started < 2500]).toEqual([0, true]);
+  });
 });

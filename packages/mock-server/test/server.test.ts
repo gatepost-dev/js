@@ -209,4 +209,21 @@ describe('the mock server', () => {
     expect(url).toMatch(/^http:\/\/localhost:\d+$/);
     expect((await fetch(`${url}/healthz`)).status).toBe(200);
   });
+
+  it('lets close run twice', async () => {
+    const server = await startMockServer({ port: 0 });
+    await server.close();
+    await expect(server.close()).resolves.toBeUndefined();
+  });
+
+  it('gives a URL with brackets for an IPv6 address', async () => {
+    const { url } = await start({ host: '::1' });
+    expect(url).toMatch(/^http:\/\/\[::1\]:\d+$/);
+    expect((await fetch(`${url}/healthz`)).status).toBe(200);
+  });
+
+  it('gives a URL with localhost when it listens on every IPv6 address', async () => {
+    const { url } = await start({ host: '::' });
+    expect(url).toMatch(/^http:\/\/localhost:\d+$/);
+  });
 });
