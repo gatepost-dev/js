@@ -118,7 +118,7 @@ jobs:
             and .lookupScope and .credits and (.rateLimited | not)) | .key' \
             spec/fixtures/keys.json | head --lines=1)"
           docker run --detach --name mock --publish 4010:4010 postcode-mock:ci
-          curl --silent --show-error --fail --retry 10 --retry-connrefused --retry-delay 1 \
+          curl --silent --show-error --fail --retry 10 --retry-all-errors --retry-delay 1 \
             http://localhost:4010/healthz
           curl --silent --show-error --fail-with-body --header "X-API-Key: $key" \
             'http://localhost:4010/v1/lookup?code=FC-01-Z99-ZZ-01' | tee "$RUNNER_TEMP/lookup.json"
