@@ -36,6 +36,11 @@ describe('toModule', () => {
     expect(module).not.toContain("'@gatepost/core'");
   });
 
+  it('imports a package from the module that the sources name', () => {
+    const module = toModule("import { b } from '@gatepost/b';\nb();", { '@gatepost/b': '/b.ts' });
+    expect(module).toContain("import { b } from '/b.ts';");
+  });
+
   it('imports each function that an example without an import uses', () => {
     const module = toModule("parse('x'); // 'y'\nredact(x);");
     expect(module).toContain("import { parse, redact } from '../../src/index.js';");
