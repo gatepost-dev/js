@@ -79,6 +79,14 @@ describe('the API key in an error', () => {
     }
   });
 
+  it('is not in the message when the gateway echoes the key as its error code', async () => {
+    for (const status of [400, 401, 402, 403, 404, 500, 503]) {
+      const error = (await failureOf(lookup, failed(status, KEY))) as Error;
+      expect(error.message).not.toContain(SECRET_PART);
+      expect((error as { apiCode?: string }).apiCode).toBe(KEY);
+    }
+  });
+
   it('is not in the error for input that the client refuses', async () => {
     const calls = [
       (client: PostcodeClient) => client.lookup('not a postcode'),

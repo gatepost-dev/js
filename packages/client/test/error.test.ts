@@ -30,16 +30,20 @@ describe('the status map of spec/client.md', () => {
     expect([error.code, error.status, error.apiCode]).toEqual([code, status, apiCode]);
   });
 
-  it('names the status and the API code in the message, after the advice', () => {
+  it('names the status in the message, after the advice', () => {
     const error = errorForResponse({
       status: 403,
       apiCode: 'level_not_granted',
       retryAfterMs: null,
     });
     expect(error.message).toBe(
-      "The gateway refused the call. Check the key's scope and lookup level." +
-        ' (status 403, level_not_granted)',
+      "The gateway refused the call. Check the key's scope and lookup level." + ' (status 403)',
     );
+  });
+
+  it('keeps the API code in a field and out of the message', () => {
+    const error = errorForResponse({ status: 403, apiCode: 'odd_code', retryAfterMs: null });
+    expect([error.apiCode, error.message.includes('odd_code')]).toEqual(['odd_code', false]);
   });
 
   it('keeps the wait that Retry-After asked for', () => {

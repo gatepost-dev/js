@@ -110,8 +110,7 @@ const ADVICE: Readonly<Record<PostcodeErrorCode, string>> = {
  */
 export function errorForResponse(response: FailedResponse): PostcodeError {
   const code = codeFor(response);
-  const apiCode = response.apiCode === null ? '' : `, ${response.apiCode}`;
-  return new PostcodeError(code, `${ADVICE[code]} (status ${String(response.status)}${apiCode})`, {
+  return new PostcodeError(code, `${ADVICE[code]} (status ${String(response.status)})`, {
     status: response.status,
     apiCode: response.apiCode,
     retryAfterMs: response.retryAfterMs,
