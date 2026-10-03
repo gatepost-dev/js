@@ -154,7 +154,7 @@ outcome === keystroke.signal.reason; // true
 | `maxRetries` | the most retries after the first attempt            | 2                                  |
 | `cacheTtlMs` | how long the client keeps a result, in milliseconds | 0, which keeps none                |
 
-A client retries a 502, 503 or 504, a lost connection and a timeout. It waits 500 ms before the first retry and 1000 ms before the second, plus up to 250 ms at random. With `cacheTtlMs` above 0, an identical call within that time gets the kept result with no request. Errors stay out of the cache, and `clearCache` removes every kept result. The cache of each call type keeps at most 1000 results and drops the oldest first.
+A client retries a 502, 503 or 504, a lost connection and a timeout. It waits 500 ms before the first retry and 1000 ms before the second, plus up to 250 ms at random. With `cacheTtlMs` above 0, an identical call within that time gets the kept result with no request. Errors stay out of the cache, and `clearCache` removes every kept result. The cache of each call type keeps at most 1000 results and drops the oldest first. Identical calls share one result object, and so does the cache. Do not change a result that a call returned.
 
 ```ts
 import { PostcodeClient } from '@gatepost/client';
