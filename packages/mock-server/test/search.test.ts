@@ -23,7 +23,7 @@ describe('reverse', () => {
         postcode: 'FC-01-Z99-ZZ-01',
         display: 'FC 01 Z99 ZZ 01',
         distance_m: 4.2,
-        confidence: 'high',
+        confidence: 'low',
       },
       area: 'FC-01-Z99-ZZ',
       district: 'FC-01-Z99',
