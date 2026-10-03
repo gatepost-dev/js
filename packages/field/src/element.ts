@@ -521,7 +521,10 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   async #lookUp(postcode: Postcode, asked: Asked): Promise<void> {
     if (this.#keyRefused) {
       this.#outcome = { state: 'error', note: { key: 'secret_key' } };
-      this.#raise('gatepost-error', { code: 'secret_key' });
+      // The event waits for the render and for the change that caused the lookup.
+      queueMicrotask(() => {
+        this.#raise('gatepost-error', { code: 'secret_key' });
+      });
       return;
     }
     if (this.#client === null) {
@@ -546,11 +549,11 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
       if (work.signal.aborted) {
         return;
       }
-      if (!(error instanceof PostcodeError)) {
-        throw error;
-      }
+      // Any failure ends the request. Only an error of the client has a code for the event.
       this.#finish({ state: 'error', note: { key: 'check_failed' } });
-      this.#raise('gatepost-error', { code: error.code });
+      if (error instanceof PostcodeError) {
+        this.#raise('gatepost-error', { code: error.code });
+      }
     }
   }
 

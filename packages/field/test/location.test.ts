@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import type { ReverseResult } from '@gatepost/client';
+import { PostcodeClient, type ReverseResult } from '@gatepost/client';
 import { parse, type Postcode } from '@gatepost/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
@@ -12,6 +12,7 @@ import { fixture, scriptGateway } from './gateway.js';
 const KEY = 'nipost_pk_test_mock';
 const FIELD = `<gatepost-postcode-field api-key="${KEY}" gps></gatepost-postcode-field>`;
 const COARSE = 'We added part of your postcode from your location. Type the rest.';
+const UNAVAILABLE = 'We could not find your location. Type your postcode.';
 const NOT_FOUND = 'We found no postcode at your location. Type your postcode.';
 
 afterEach(() => {
@@ -273,6 +274,47 @@ describe('the location button', () => {
       expect(errors).toEqual([{ code: 'rate_limited' }]);
     });
     expect(message()).toBe('We could not find your location. Type your postcode.');
+  });
+
+  it('ends as a failed request when the base-url has no scheme', async () => {
+    placeDevice(5);
+    const { requests } = scriptGateway();
+    const { form, location, message } = mount(
+      `<gatepost-postcode-field api-key="${KEY}" base-url="127.0.0.1:4010" gps>` +
+        '</gatepost-postcode-field>',
+    );
+    const errors = listen(form);
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe(UNAVAILABLE);
+    });
+    expect(errors).toEqual([]);
+    expect(requests).toEqual([]);
+  });
+
+  it('ends as a failed request when the client throws a plain error', async () => {
+    placeDevice(5);
+    vi.spyOn(PostcodeClient.prototype, 'reverse').mockRejectedValueOnce(new Error('It broke.'));
+    const { form, location, message } = mount(FIELD);
+    const errors = listen(form);
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe(UNAVAILABLE);
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it('ends as a failed request when the device call throws a plain error', async () => {
+    vi.spyOn(navigator.geolocation, 'getCurrentPosition').mockImplementation(() => {
+      throw new Error('It broke.');
+    });
+    const { form, location, message } = mount(FIELD);
+    const errors = listen(form);
+    await userEvent.click(location);
+    await vi.waitFor(() => {
+      expect(message()).toBe(UNAVAILABLE);
+    });
+    expect(errors).toEqual([]);
   });
 
   it('shows the state GPS locating, and typing cancels it', async () => {

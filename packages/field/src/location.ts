@@ -98,7 +98,8 @@ export async function findFix(
     position = await currentPosition();
   } catch (error) {
     if (!(error instanceof GeolocationPositionError)) {
-      throw error;
+      // Any other failure of the device call ends the request too, and it has no event code.
+      return { kind: 'failed', key: 'gps_unavailable', code: null };
     }
     const key = error.code === error.PERMISSION_DENIED ? 'gps_denied' : 'gps_unavailable';
     return { kind: 'failed', key, code: key };
@@ -116,10 +117,10 @@ export async function findFix(
       signal,
     });
   } catch (error) {
-    if (!(error instanceof PostcodeError)) {
-      throw error;
-    }
-    return { kind: 'failed', key: 'gps_unavailable', code: error.code };
+    // A cancelled call is the one failure that ends with no outcome.
+    signal.throwIfAborted();
+    const code = error instanceof PostcodeError ? error.code : null;
+    return { kind: 'failed', key: 'gps_unavailable', code };
   }
   const postcode = postcodeAtFix(result, accuracy);
   if (postcode === null) {

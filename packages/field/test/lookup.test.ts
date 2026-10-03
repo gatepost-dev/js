@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
+import { PostcodeClient, type LookupResult } from '@gatepost/client';
+import { parse } from '@gatepost/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import type { ConfirmDetail, ErrorDetail } from '../src/index.js';
@@ -65,6 +67,8 @@ describe('lookups', () => {
   it('says when the gateway does not know the postcode, and still submits it', async () => {
     scriptGateway(await fixture('lookup/not-found'));
     const { form, field, input, message } = mount(FIELD);
+    const confirms = listen<ConfirmDetail>(form, 'gatepost-confirm');
+    const errors = listen<ErrorDetail>(form, 'gatepost-error');
     await userEvent.type(input, 'FC01Z99ZZ02');
     await vi.waitFor(() => {
       expect(message()).toBe(
@@ -73,6 +77,7 @@ describe('lookups', () => {
     });
     expect(field.checkValidity()).toBe(true);
     expect(new FormData(form).get('postcode')).toBe('FC-01-Z99-ZZ-02');
+    expect([confirms, errors]).toEqual([[], []]);
   });
 
   it('offline format check: keeps the check and the form when the network fails', async () => {
@@ -107,7 +112,9 @@ describe('lookups', () => {
       new Promise<Response>(() => undefined),
       await fixture('lookup/not-found'),
     );
-    const { input, message } = mount(FIELD);
+    const { form, input, message } = mount(FIELD);
+    const confirms = listen<ConfirmDetail>(form, 'gatepost-confirm');
+    const errors = listen<ErrorDetail>(form, 'gatepost-error');
     await userEvent.type(input, 'FC01Z99ZZ01');
     await vi.waitFor(() => {
       expect(requests).toHaveLength(1);
@@ -118,18 +125,26 @@ describe('lookups', () => {
     });
     expect(requests[0]?.signal?.aborted).toBe(true);
     expect(requests[1]?.url.searchParams.get('code')).toBe('FC-01-Z99-ZZ-02');
+    expect(confirms).toEqual([]);
+    expect(errors).toEqual([]);
   });
 
-  it('sends no request when it has no key', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch');
-    const { input } = mount('<gatepost-postcode-field></gatepost-postcode-field>');
-    await userEvent.type(input, 'FC01Z99ZZ01');
-    await userEvent.tab();
-    expect(fetch).not.toHaveBeenCalled();
+  it('sends no request when it has no key, or an empty one', async () => {
+    const { requests } = scriptGateway();
+    for (const html of [
+      '<gatepost-postcode-field></gatepost-postcode-field>',
+      '<gatepost-postcode-field api-key=""></gatepost-postcode-field>',
+    ]) {
+      const { input, message } = mount(html);
+      await userEvent.type(input, 'FC01Z99ZZ01');
+      await userEvent.tab();
+      expect(message()).toBe('This postcode is in Federal Capital Territory.');
+    }
+    expect(requests).toEqual([]);
   });
 
   it('sends no lookup when confirm is none, or for a legacy postcode', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch');
+    const { requests } = scriptGateway();
     const { input, message } = mount(
       `<gatepost-postcode-field api-key="${KEY}" confirm="none"></gatepost-postcode-field>`,
     );
@@ -137,7 +152,7 @@ describe('lookups', () => {
     expect(message()).toBe('This postcode is in Federal Capital Territory.');
     const legacy = mount(FIELD);
     await userEvent.type(legacy.input, '900108');
-    expect(fetch).not.toHaveBeenCalled();
+    expect(requests).toEqual([]);
   });
 
   it('has no WCAG 2.2 AA violation while checking, confirmed, not found and failed', async () => {
@@ -212,38 +227,163 @@ describe('what the field remembers', () => {
     expect(requests).toHaveLength(2);
   });
 
-  it('sends no new lookup when only the gateway address changes', async () => {
-    const { requests } = scriptGateway(await fixture('lookup/valid-level-1'));
+  it('does not retry a failed lookup when only the gateway address changes', async () => {
+    const { requests } = scriptGateway(
+      await fixture('errors/rate-limited'),
+      await fixture('lookup/valid-level-1'),
+    );
     const { field, input, message } = mount(FIELD);
     await userEvent.type(input, 'FC01Z99ZZ01');
     await vi.waitFor(() => {
-      expect(message()).toBe('We found this postcode in Federal Capital Territory.');
+      expect(message()).toContain('We could not check');
     });
     field.setAttribute('base-url', 'http://127.0.0.1:4010');
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(requests).toHaveLength(1);
-    expect(message()).toBe('We found this postcode in Federal Capital Territory.');
+    expect(message()).toContain('We could not check');
+    await userEvent.type(input, '{Backspace}1');
+    await vi.waitFor(() => {
+      expect(message()).toBe('We found this postcode in Federal Capital Territory.');
+    });
+    expect(requests[1]?.url.origin).toBe('http://127.0.0.1:4010');
+  });
+
+  it('keeps a lookup in progress when only the gateway address changes', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    const pending = new Promise<Response>((resolve) => {
+      answer = resolve;
+    });
+    const { requests } = scriptGateway(pending);
+    const { field, input, message } = mount(FIELD);
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await vi.waitFor(() => {
+      expect(requests).toHaveLength(1);
+    });
+    field.setAttribute('base-url', 'http://127.0.0.1:4010');
+    expect(requests[0]?.signal?.aborted).toBe(false);
+    expect(message()).toBe('Checking your postcode.');
+    answer(await fixture('lookup/valid-level-1'));
+    await vi.waitFor(() => {
+      expect(message()).toBe('We found this postcode in Federal Capital Territory.');
+    });
+    expect(requests).toHaveLength(1);
+  });
+
+  it('ignores the answer of a cancelled lookup, even one that ignores the signal', async () => {
+    scriptGateway(await fixture('lookup/not-found'));
+    let answer: (lookup: LookupResult) => void = () => undefined;
+    const late = new Promise<LookupResult>((resolve) => {
+      answer = resolve;
+    });
+    vi.spyOn(PostcodeClient.prototype, 'lookup').mockImplementationOnce(async () => await late);
+    const { form, input, message } = mount(FIELD);
+    const confirms = listen<ConfirmDetail>(form, 'gatepost-confirm');
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await userEvent.type(input, '{Backspace}2');
+    await vi.waitFor(() => {
+      expect(message()).toContain('We could not find this postcode.');
+    });
+    const parsed = parse('FC-01-Z99-ZZ-01');
+    if (!parsed.ok) {
+      throw new Error('The test postcode does not parse.');
+    }
+    answer({
+      postcode: parsed.value,
+      valid: true,
+      status: null,
+      levelRequested: 1,
+      levelReceived: 1,
+      administrativeAddress: null,
+      recentHouseAddress: null,
+      buildingUseStatus: null,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(confirms).toEqual([]);
+    expect(message()).toContain('We could not find this postcode.');
+  });
+});
+
+describe('a call that fails', () => {
+  const FAILED = 'We could not check this postcode just now. You can still continue.';
+
+  it('ends as a failed lookup when the base-url has no scheme', async () => {
+    const { requests } = scriptGateway();
+    const { form, field, input, message } = mount(
+      `<gatepost-postcode-field api-key="${KEY}" base-url="127.0.0.1:4010">` +
+        '</gatepost-postcode-field>',
+    );
+    const confirms = listen<ConfirmDetail>(form, 'gatepost-confirm');
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await vi.waitFor(() => {
+      expect(message()).toBe(FAILED);
+    });
+    expect(confirms).toEqual([]);
+    expect(requests).toEqual([]);
+    expect(field.checkValidity()).toBe(true);
+  });
+
+  it('ends as a failed lookup when the client throws a plain error, and tries again', async () => {
+    const lookup = vi.spyOn(PostcodeClient.prototype, 'lookup');
+    lookup.mockRejectedValueOnce(new Error('The client broke.'));
+    const { requests } = scriptGateway(await fixture('lookup/valid-level-1'));
+    const { field, form, input, message } = mount(FIELD);
+    const errors = listen<ErrorDetail>(form, 'gatepost-error');
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await vi.waitFor(() => {
+      expect(message()).toBe(FAILED);
+    });
+    expect(errors).toEqual([]);
+    expect(field.checkValidity()).toBe(true);
+    field.setAttribute('required', '');
+    await vi.waitFor(() => {
+      expect(message()).toBe('We found this postcode in Federal Capital Territory.');
+    });
+    expect(requests).toHaveLength(1);
   });
 });
 
 describe('a secret key in the page', () => {
+  const SECRET = 'We cannot check postcodes on this page. You can still continue.';
+
   it('sends no request, shows the state error, logs one error and raises secret_key', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch');
+    const { requests } = scriptGateway();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const form = document.createElement('form');
-    document.body.append(form);
-    const errors = listen<ErrorDetail>(form, 'gatepost-error');
-    form.innerHTML =
-      '<gatepost-postcode-field api-key="nipost_live_abc"></gatepost-postcode-field>';
-    const field = form.querySelector('gatepost-postcode-field');
-    const input = field?.shadowRoot?.querySelector('input');
-    await userEvent.type(input!, 'FC01Z99ZZ01');
-    expect(field?.shadowRoot?.querySelector('#note')?.textContent).toBe(
-      'We cannot check postcodes on this page. You can still continue.',
+    const { form, field, input, message, changes } = mount(
+      '<gatepost-postcode-field api-key="nipost_live_abc"></gatepost-postcode-field>',
     );
-    expect(errors).toEqual([{ code: 'secret_key' }]);
+    const order: string[] = [];
+    form.addEventListener('gatepost-error', () => {
+      order.push(`error: ${message()}`);
+    });
+    field.addEventListener('gatepost-change', () => {
+      order.push('change');
+    });
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    expect(message()).toBe(SECRET);
+    expect(order.slice(-2)).toEqual(['change', `error: ${SECRET}`]);
+    expect(changes).toHaveLength(11);
     expect(consoleError).toHaveBeenCalledOnce();
     expect(String(consoleError.mock.calls[0]?.[0])).not.toContain('nipost_live_abc');
-    expect(fetch).not.toHaveBeenCalled();
+    expect(requests).toEqual([]);
+  });
+
+  it('raises secret_key for each lookup, and logs again when base-url changes', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { form, field, input } = mount(
+      '<gatepost-postcode-field api-key="nipost_live_abc"></gatepost-postcode-field>',
+    );
+    const errors = listen<ErrorDetail>(form, 'gatepost-error');
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await userEvent.type(input, '{Backspace}2');
+    expect(errors).toEqual([{ code: 'secret_key' }, { code: 'secret_key' }]);
+    field.setAttribute('base-url', 'http://127.0.0.1:4010');
+    expect(consoleError).toHaveBeenCalledTimes(2);
+    expect(errors).toHaveLength(2);
+    field.setAttribute('confirm', 'none');
+    await userEvent.type(input, '{Backspace}1');
+    expect(errors).toHaveLength(2);
+    for (const call of consoleError.mock.calls) {
+      expect(String(call[0])).not.toContain('nipost_live_abc');
+    }
   });
 });
