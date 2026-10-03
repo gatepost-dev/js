@@ -279,3 +279,37 @@ describe('the cache', () => {
     expect(requests).toHaveLength(2);
   });
 });
+
+describe('the share and cache key of each method', () => {
+  const reverse: Answer = { status: 200, body: { data: { found: false, radius_m: 25 } } };
+  const autocomplete: Answer = {
+    status: 200,
+    body: { data: { segment: 'state', suggestions: [] } },
+  };
+
+  it('keeps reverse calls that differ only in lng apart', async () => {
+    const shared = clientWith({}, reverse);
+    await Promise.all([shared.client.reverse(9, 7), shared.client.reverse(9, 8)]);
+    expect(shared.requests).toHaveLength(2);
+    const cached = clientWith({ cacheTtlMs: 60_000 }, reverse);
+    await cached.client.reverse(9, 7);
+    await cached.client.reverse(9, 8);
+    expect(cached.requests).toHaveLength(2);
+  });
+
+  it('keeps reverse calls that differ only in lat apart', async () => {
+    const { client, requests } = clientWith({}, reverse);
+    await Promise.all([client.reverse(9, 7), client.reverse(8, 7)]);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('uses the normalised text as the key of autocomplete', async () => {
+    const shared = clientWith({}, autocomplete);
+    await Promise.all([shared.client.autocomplete('fc01'), shared.client.autocomplete('FC 01')]);
+    expect(shared.requests).toHaveLength(1);
+    const cached = clientWith({ cacheTtlMs: 60_000 }, autocomplete);
+    await cached.client.autocomplete('fc01');
+    await cached.client.autocomplete('FC 01');
+    expect(cached.requests).toHaveLength(1);
+  });
+});
