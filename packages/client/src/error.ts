@@ -122,7 +122,8 @@ export function errorForResponse(response: FailedResponse): PostcodeError {
  *
  * @param code - `invalid_input`, `network_error`, `timeout`, `unexpected_response` or
  *   `server_error`.
- * @param detail - A sentence that adds to the advice, or an empty string.
+ * @param detail - A sentence that adds to the advice, or an empty string. For `invalid_input`
+ *   the advice is left out, so the detail must be a full message and not empty.
  * @param cause - The error that the platform raised, if any.
  * @returns The error.
  * @internal

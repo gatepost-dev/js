@@ -6,7 +6,7 @@ Date: 9 Oct 2026
 
 `@gatepost/client` must parse each postcode before it sends a lookup, so that a bad code sends no request. It also returns parsed postcodes in its results, and it builds the partial postcode of each autocomplete offer. `@gatepost/core` holds the only parser, with the state table and the segment rules from the spec data.
 
-The roadmap says that the client has no runtime dependencies. DEP-3 asks for a record of each new runtime dependency.
+The client was first planned with no runtime dependencies. DEP-3 asks for a record of each new runtime dependency.
 
 ## Decision
 

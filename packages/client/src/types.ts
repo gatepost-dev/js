@@ -12,7 +12,10 @@ export interface ClientOptions {
   readonly baseUrl?: string;
   /** The function that sends each request. The default is the platform's `fetch`. */
   readonly transport?: typeof globalThis.fetch;
-  /** The longest wait for one attempt, in milliseconds. The default is 8000. */
+  /**
+   * The longest wait for one attempt, in milliseconds. The default is 8000, and 15000 for
+   * `autocomplete`.
+   */
   readonly timeoutMs?: number;
   /** The most retries after the first attempt. The default is 2. */
   readonly maxRetries?: number;
@@ -26,8 +29,9 @@ export interface ClientOptions {
 export type LookupLevel = 1 | 2 | 3 | 4 | 5;
 
 /**
- * The gateway's verdict on a postcode. `invalid` means a wrong form, and `not_found` means a
- * right form that the gateway does not know.
+ * The verdicts that the gateway has sent so far. `invalid` means a wrong form, and `not_found`
+ * means a right form that the gateway does not know. A new gateway can send another one, so
+ * `LookupResult.status` is text.
  */
 export type LookupStatus = 'valid' | 'invalid' | 'not_found' | 'restricted';
 
@@ -54,8 +58,8 @@ export interface LookupResult {
   readonly postcode: Postcode;
   /** True when the gateway knows the postcode. */
   readonly valid: boolean;
-  /** The gateway's verdict, or null when the response has none that this client knows. */
-  readonly status: LookupStatus | null;
+  /** The gateway's verdict as text, such as a `LookupStatus`, or null when it sent none. */
+  readonly status: string | null;
   /** The lookup level that the caller asked for. */
   readonly levelRequested: LookupLevel;
   /** The lookup level of the data in the response, which the client reads from its fields. */
@@ -100,14 +104,14 @@ export interface ReverseUnit {
 export interface ReverseResult {
   /** True when the gateway found a unit or an area within the radius. */
   readonly found: boolean;
-  /** The radius that the gateway applied, in metres. */
-  readonly radiusM: number;
+  /** The radius that the gateway applied, in metres, or null when the response has none. */
+  readonly radiusM: number | null;
   /** The nearest unit, or null. */
   readonly unit: ReverseUnit | null;
-  /** The area as a partial postcode, or null. */
-  readonly area: Postcode | null;
-  /** The district as a partial postcode, or null. */
-  readonly district: Postcode | null;
+  /** The area as the gateway sent it, or null. The client does not parse it. */
+  readonly area: string | null;
+  /** The district as the gateway sent it, or null. The client does not parse it. */
+  readonly district: string | null;
   /** The state code, or null. */
   readonly state: string | null;
 }

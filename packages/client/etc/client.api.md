@@ -49,7 +49,7 @@ export interface LookupResult {
     readonly levelRequested: LookupLevel;
     readonly postcode: Postcode;
     readonly recentHouseAddress: string | null;
-    readonly status: LookupStatus | null;
+    readonly status: string | null;
     readonly valid: boolean;
 }
 
@@ -76,10 +76,10 @@ export type PostcodeErrorCode = "invalid_input" | "unauthorized" | "insufficient
 
 // @public
 export interface ReverseResult {
-    readonly area: Postcode | null;
-    readonly district: Postcode | null;
+    readonly area: string | null;
+    readonly district: string | null;
     readonly found: boolean;
-    readonly radiusM: number;
+    readonly radiusM: number | null;
     readonly state: string | null;
     readonly unit: ReverseUnit | null;
 }

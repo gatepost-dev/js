@@ -22,6 +22,9 @@ describe('the status map of spec/client.md', () => {
     [504, null, 'server_error'],
     [204, null, 'server_error'],
     [302, null, 'server_error'],
+    [100, null, 'server_error'],
+    [599, null, 'server_error'],
+    [401, 'unlisted_code', 'unauthorized'],
   ] as const)('maps %i with the API code %s to %s', (status, apiCode, code) => {
     const error = errorForResponse({ status, apiCode, retryAfterMs: null });
     expect([error.code, error.status, error.apiCode]).toEqual([code, status, apiCode]);
@@ -43,6 +46,11 @@ describe('the status map of spec/client.md', () => {
     const error = errorForResponse({ status: 429, apiCode: null, retryAfterMs: 120_000 });
     expect(error.retryAfterMs).toBe(120_000);
     expect(error.message).toContain('(status 429)');
+  });
+
+  it('keeps the wait of a 502', () => {
+    const error = errorForResponse({ status: 502, apiCode: null, retryAfterMs: 3000 });
+    expect([error.code, error.retryAfterMs]).toEqual(['server_error', 3000]);
   });
 });
 
