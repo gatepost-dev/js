@@ -19,22 +19,51 @@ export interface View {
   readonly location: HTMLButtonElement;
 }
 
-// The DOM order is the visual order and the tab order: the input, the suggestion button, then
-// the location button. The live region holds the two messages, and not the buttons.
-const TEMPLATE = `
-<div class="field" part="field" data-state="idle">
-  <label for="input" part="label"></label>
-  <p id="hint" class="hint" part="hint"></p>
-  <input id="input" part="input" type="text" autocomplete="postal-code"
-    autocapitalize="characters" spellcheck="false" enterkeyhint="done"
-    aria-describedby="hint message">
-  <div id="message" class="message" part="message" role="status">
-    <p id="note"></p>
-    <p id="did-you-mean" hidden></p>
-  </div>
-  <button id="suggestion" class="link" type="button" part="button" hidden></button>
-  <button id="location" class="link" type="button" part="button" hidden></button>
-</div>`;
+function make<Tag extends keyof HTMLElementTagNameMap>(
+  tag: Tag,
+  attributes: Readonly<Record<string, string>>,
+  ...children: readonly Node[]
+): HTMLElementTagNameMap[Tag] {
+  const element = document.createElement(tag);
+  for (const [name, value] of Object.entries(attributes)) {
+    element.setAttribute(name, value);
+  }
+  element.append(...children);
+  return element;
+}
+
+// The shadow tree is built with DOM calls and no HTML string, so a page with a Trusted Types
+// policy can show it. The DOM order is the visual order and the tab order: the input, the
+// suggestion button, then the location button. The live region holds the two messages, and not
+// the buttons.
+function buildTree(): HTMLElement {
+  const button = (id: string): HTMLButtonElement =>
+    make('button', { id, class: 'link', type: 'button', part: 'button', hidden: '' });
+  return make(
+    'div',
+    { class: 'field', part: 'field', 'data-state': 'idle' },
+    make('label', { for: 'input', part: 'label' }),
+    make('p', { id: 'hint', class: 'hint', part: 'hint' }),
+    make('input', {
+      id: 'input',
+      part: 'input',
+      type: 'text',
+      autocomplete: 'postal-code',
+      autocapitalize: 'characters',
+      spellcheck: 'false',
+      enterkeyhint: 'done',
+      'aria-describedby': 'hint message',
+    }),
+    make(
+      'div',
+      { id: 'message', class: 'message', part: 'message', role: 'status' },
+      make('p', { id: 'note' }),
+      make('p', { id: 'did-you-mean', hidden: '' }),
+    ),
+    button('suggestion'),
+    button('location'),
+  );
+}
 
 let sheet: CSSStyleSheet | undefined;
 
@@ -60,7 +89,7 @@ export function buildView(root: ShadowRoot): View {
     sheet.replaceSync(STYLES);
   }
   root.adoptedStyleSheets = [sheet];
-  root.innerHTML = TEMPLATE;
+  root.replaceChildren(buildTree());
   return {
     field: find(root, '.field', HTMLDivElement),
     label: find(root, 'label', HTMLLabelElement),

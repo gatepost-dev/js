@@ -32,6 +32,8 @@ Import `@gatepost/field` once in your app, and the page can use the element. A p
 </form>
 ```
 
+The element is empty until the script runs, so the layout moves when it loads, and a page with no JavaScript sends no postcode. A `<label for>` outside the element cannot name the input inside it, so give the text with the `label` attribute.
+
 A user who types `fc 01 z99 zz 01` sends `postcode=FC-01-Z99-ZZ-01`. With no key, the field checks the format offline and sends no request.
 
 ## What it does
@@ -42,7 +44,7 @@ A user who types `fc 01 z99 zz 01` sends `postcode=FC-01-Z99-ZZ-01`. With no key
 - Submits the form on Enter, as a native input does.
 - With a publishable key, asks NIPOST's gateway about each whole postcode, and names its place.
 - With `gps`, puts the postcode of the user's location in the input, or only the part that the accuracy supports.
-- Works with the keyboard alone and with screen readers, and meets WCAG 2.2 AA.
+- Works with the keyboard alone and with screen readers, and meets WCAG 2.2 AA on a light page. A dark page needs the colour tokens (see "Change the words and the look").
 - Stores nothing, sets no cookie and sends no telemetry.
 
 ### Check postcodes with NIPOST
@@ -84,7 +86,7 @@ A postcode that the gateway does not know, or a failed request, never stops the 
 </script>
 ```
 
-The events bubble, so a page can listen on the form.
+The events bubble, so a page can listen on the form. At level 2, `gatepost-confirm` gives the recent house address of the postcode. The field never shows it, and your page should not show it to the person who typed the postcode, who can have typed any postcode.
 
 | Event              | `detail`                                                                                        |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
@@ -112,7 +114,21 @@ The `messages` property replaces messages by key, and the field keeps the Englis
 
 You can set the properties `messages` and `value` before the browser defines the element, for example when a framework renders the field before the script loads. The field takes them when it starts.
 
-The tokens are `--gatepost-text`, `--gatepost-muted`, `--gatepost-background`, `--gatepost-border`, `--gatepost-accent`, `--gatepost-error`, `--gatepost-warning`, `--gatepost-radius` and `--gatepost-font`. The defaults meet a contrast of 4.5:1 on white. Check your own colours on your page's background. The parts `field`, `label`, `hint`, `input`, `message` and `button` take `::part()` rules.
+The tokens are `--gatepost-text`, `--gatepost-muted`, `--gatepost-background`, `--gatepost-border`, `--gatepost-accent`, `--gatepost-error`, `--gatepost-warning`, `--gatepost-radius` and `--gatepost-font`. The defaults are for a light page: the label, the hint and the message take the page's own background, and the defaults meet a contrast of 4.5:1 on white. On a dark page, set all five colour tokens, as below, and check your own colours on your page's background. On a dark page, add these rules to your style sheet:
+
+```css
+gatepost-postcode-field {
+  --gatepost-text: #f2f5f4;
+  --gatepost-muted: #b9c2be;
+  --gatepost-background: #1c2321;
+  --gatepost-border: #8f9b96;
+  --gatepost-accent: #5ad1bf;
+  --gatepost-error: #ff9d94;
+  --gatepost-warning: #ffb95c;
+}
+```
+
+The parts `field`, `label`, `hint`, `input`, `message` and `button` take `::part()` rules.
 
 ## Requirements
 

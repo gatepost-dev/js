@@ -43,6 +43,7 @@ export interface PostcodeFieldElement extends HTMLElement {
     attributeChangedCallback(name: string): void;
     checkValidity(): boolean;
     connectedCallback(): void;
+    disconnectedCallback(): void;
     readonly form: HTMLFormElement | null;
     formDisabledCallback(disabled: boolean): void;
     formResetCallback(): void;

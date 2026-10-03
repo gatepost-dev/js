@@ -388,4 +388,36 @@ describe('a secret key in the page', () => {
       expect(String(call[0])).not.toContain('nipost_live_abc');
     }
   });
+
+  it.each([' ', '\n', '\r\n\t '])(
+    'refuses a secret key that has white space before it (%j)',
+    async (space) => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { requests } = scriptGateway();
+      const { field, form } = mount(
+        `<gatepost-postcode-field api-key="${space}nipost_live_abc" value="FC-01-Z99-ZZ-01">` +
+          '</gatepost-postcode-field>',
+      );
+      const errors = listen<ErrorDetail>(form, 'gatepost-error');
+      field.setAttribute('value', 'FC-01-Z99-ZZ-02');
+      await vi.waitFor(() => {
+        expect(errors).not.toEqual([]);
+      });
+      expect(new Set(errors.map((detail) => detail.code))).toEqual(new Set(['secret_key']));
+      expect(requests).toEqual([]);
+      expect(error).toHaveBeenCalled();
+    },
+  );
+
+  it('counts a key of white space only as no key', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { requests } = scriptGateway();
+    const { location } = mount(
+      '<gatepost-postcode-field api-key="  " gps value="FC-01-Z99-ZZ-01">' +
+        '</gatepost-postcode-field>',
+    );
+    expect(requests).toEqual([]);
+    expect(location.hidden).toBe(true);
+    expect(error).not.toHaveBeenCalled();
+  });
 });

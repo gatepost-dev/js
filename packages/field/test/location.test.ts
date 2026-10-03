@@ -456,6 +456,38 @@ describe('the location button', () => {
     expect(requests.map((request) => request.url.pathname)).toEqual(['/v1/lookup', '/v1/lookup']);
   });
 
+  it('keeps the location request when a setting changes after the blur reformat', async () => {
+    const place = holdDevice();
+    scriptGateway(
+      new Promise<Response>(() => undefined),
+      await fixture('reverse/unit'),
+      await fixture('lookup/valid-level-1'),
+    );
+    const { field, input, location, message } = mount(FIELD);
+    await userEvent.type(input, 'fc01z99zz01');
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.click(location);
+    expect(input.value).toBe('FC 01 Z99 ZZ 01');
+    field.setAttribute('required', '');
+    expect(message()).toBe('Finding your location.');
+    place(5);
+    await vi.waitFor(() => {
+      expect(message()).toBe('We found this postcode in Federal Capital Territory.');
+    });
+  });
+
+  it('keeps a refused location message when a setting changes after the reformat', async () => {
+    refuseLocation(1);
+    scriptGateway(new Promise<Response>(() => undefined));
+    const { field, input, location, message } = mount(FIELD);
+    await userEvent.type(input, 'fc01z99zz01');
+    await userEvent.tab();
+    await userEvent.click(location);
+    field.setAttribute('required', '');
+    expect(message()).toBe('We cannot use your location. Type your postcode.');
+  });
+
   it('turns off with the form', () => {
     const { location } = mount(`<fieldset disabled>${FIELD}</fieldset>`);
     expect(location.disabled).toBe(true);

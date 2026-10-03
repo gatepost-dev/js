@@ -115,6 +115,9 @@ export interface PostcodeFieldElement extends HTMLElement {
   /** Reads the settings and checks the text. The browser calls it on insertion. */
   connectedCallback(): void;
 
+  /** Cancels any request and forgets its outcome. The browser calls it on removal. */
+  disconnectedCallback(): void;
+
   /**
    * Applies a changed attribute. The browser calls it.
    *
@@ -226,7 +229,9 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   }
 
   set messages(messages: Partial<Messages>) {
-    this.#messages = { ...ENGLISH, ...messages };
+    // An entry that is not text, such as undefined from a missing key, keeps its English text.
+    const texts = Object.entries(messages).filter(([, text]) => typeof text === 'string');
+    this.#messages = { ...ENGLISH, ...Object.fromEntries(texts) };
     this.#setValidity();
     this.#render();
   }
@@ -362,12 +367,18 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     return confirm === 'level1' || confirm === 'level2' ? LEVELS[confirm] : null;
   }
 
+  // A browser drops white space around a header value, so a key with a space before a secret
+  // key would reach the gateway as that secret key. The field trims the key once, for every use.
+  get #key(): string {
+    return (this.getAttribute('api-key') ?? '').trim();
+  }
+
   #makeClient(): void {
-    const apiKey = this.getAttribute('api-key');
+    const apiKey = this.#key;
     const baseUrl = this.getAttribute('base-url');
     this.#client = null;
     this.#keyRefused = false;
-    if (apiKey === null || apiKey === '') {
+    if (apiKey === '') {
       return;
     }
     try {
@@ -398,7 +409,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   // The lookup that the text and the settings call for, or null when they call for none.
   #wanted(reading: Reading): Asked | null {
     const level = this.#level;
-    const key = this.getAttribute('api-key') ?? '';
+    const key = this.#key;
     if (reading.kind !== 'postcode' || !this.#connected || level === null || key === '') {
       return null;
     }
@@ -454,6 +465,8 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     this.#errorsShown = true;
     if (this.#reading.kind === 'postcode') {
       this.#view.input.value = this.#reading.postcode.display;
+      // The reformat is not a change by the user, so a later refresh must not read it as one.
+      this.#lastText = this.#view.input.value;
       this.#internals.setFormValue(this.#value, this.#view.input.value);
     }
     this.#render();

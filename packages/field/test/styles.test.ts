@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
-import { mount } from './field.js';
+import { expectAccessible, mount } from './field.js';
 
 // The relative luminance and the contrast ratio of WCAG 2.2, for colours written #rrggbb.
 function luminance(hex: string): number {
@@ -41,6 +41,50 @@ describe('the theme tokens', () => {
       '<gatepost-postcode-field style="--gatepost-accent: #123456"></gatepost-postcode-field>',
     );
     expect(token(field.shadowRoot!.querySelector('button')!, 'accent')).toBe('#123456');
+  });
+});
+
+// The dark example of the README. The defaults are for a light page, so a dark page sets all five
+// colour tokens.
+const DARK = [
+  '--gatepost-text: #f2f5f4',
+  '--gatepost-muted: #b9c2be',
+  '--gatepost-background: #1c2321',
+  '--gatepost-border: #8f9b96',
+  '--gatepost-accent: #5ad1bf',
+  '--gatepost-error: #ff9d94',
+  '--gatepost-warning: #ffb95c',
+].join('; ');
+
+describe('a dark page', () => {
+  it('passes axe with the dark tokens, in a quiet state and with an error', async () => {
+    document.body.style.background = '#111111';
+    try {
+      const { input } = mount(
+        `<gatepost-postcode-field style="${DARK}"></gatepost-postcode-field>`,
+      );
+      await expectAccessible();
+      await userEvent.type(input, 'FC01Z99ZZ0');
+      await userEvent.tab();
+      await expectAccessible();
+    } finally {
+      document.body.style.background = '';
+    }
+  });
+});
+
+describe('the shadow tree', () => {
+  it('is built with no HTML string, so a Trusted Types policy accepts it', () => {
+    const setter = vi.fn();
+    const property = Object.getOwnPropertyDescriptor(ShadowRoot.prototype, 'innerHTML')!;
+    Object.defineProperty(ShadowRoot.prototype, 'innerHTML', { set: setter, configurable: true });
+    try {
+      const { input } = mount('<gatepost-postcode-field></gatepost-postcode-field>');
+      expect(input).toBeInstanceOf(HTMLInputElement);
+      expect(setter).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(ShadowRoot.prototype, 'innerHTML', property);
+    }
   });
 });
 

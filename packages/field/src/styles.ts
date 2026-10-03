@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The theme tokens of UI-3. A page sets them on the element, and a rule of the page wins over
-// these defaults on :host. Each text colour has a contrast of 4.5:1 or more on the background,
-// and the border has 3:1 or more, so the defaults meet WCAG 2.2 AA on a white page.
+// these defaults on :host. Each text colour has a contrast of 4.5:1 or more on the background
+// token, and the border has 3:1 or more. The host does not paint that background: only the input
+// has it. The label, the hint and the messages sit on the page, so the defaults meet WCAG 2.2 AA
+// on a light page only. A dark page sets all the colour tokens.
 const TOKENS = `
 :host {
   --gatepost-text: #0e1513;

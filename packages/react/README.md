@@ -56,7 +56,7 @@ A user who types `fc 01 z99 zz 01` sees `FC-01-Z99-ZZ-01`, and the form sends `p
 - Gives the element through `ref`, for `checkValidity()` and the other members of a form control.
 - Works with React 18 and React 19, and in the App Router of Next.js, because the module starts with `'use client'`.
 
-The field keeps its own text, as an uncontrolled input does. `defaultValue` sets the text at first, and a form reset returns to it. A new `defaultValue` later changes that first text, and never the text that the user typed. Read each new value in `onChange`, or read the form when it submits.
+The field keeps its own text, as an uncontrolled input does. `defaultValue` sets the text at first, and a form reset returns to it. A new `defaultValue` later changes that first text, and never the text that the user typed. Read each new value in `onChange`, or read the form when it submits. On React 19, a field that the browser rendered, not hydrated, keeps its first `defaultValue` after a later change of the prop. Set a `key` on the component if you need a new first text.
 
 | Prop                                           | Meaning                                                               |
 | ---------------------------------------------- | --------------------------------------------------------------------- |

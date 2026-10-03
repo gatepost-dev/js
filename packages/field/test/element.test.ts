@@ -470,4 +470,15 @@ describe('accessibility', () => {
       expect(field.shadowRoot?.querySelector('input')?.value).toBe('fc01z99zz01');
     });
   });
+
+  it('keeps the English text for a message that is not text', () => {
+    const { field, input, label, message } = mount(
+      '<gatepost-postcode-field></gatepost-postcode-field>',
+    );
+    field.messages = { valid: undefined, label: undefined } as never;
+    input.value = 'FC01Z99ZZ01';
+    input.dispatchEvent(new InputEvent('input', { inputType: 'insertText', bubbles: true }));
+    expect(label.textContent).toBe('Postcode');
+    expect(message()).toBe('This postcode is in Federal Capital Territory.');
+  });
 });
