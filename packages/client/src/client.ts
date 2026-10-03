@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Postcode } from '@gatepost/core';
 import { createCalls, type Calls } from './calls.js';
-import { clientError } from './error.js';
 import { createQueue } from './queue.js';
 import { autocompleteRequest, lookupRequest, reverseRequest } from './requests.js';
 import { readAutocomplete, readLookup, readReverse } from './responses.js';
@@ -42,7 +41,7 @@ function checkOptions(options: ClientOptions): void {
   // SEC-1: anyone can read a key that a web page holds. The message names the key's kind only.
   const { apiKey } = options;
   if (apiKey === '') {
-    throw clientError('invalid_input', 'apiKey is empty.');
+    throw new RangeError('apiKey must not be empty.');
   }
   if (apiKey !== undefined && SECRET_KEY.test(apiKey) && 'document' in globalThis) {
     throw new TypeError('A web page must not hold a secret key. Use a publishable key here.');
@@ -76,8 +75,7 @@ export class PostcodeClient {
    * @param options - The key, the gateway's address, the transport, the timeout, the retries
    *   and the cache time. Each one is optional.
    * @throws RangeError for a `timeoutMs` of 0 or less, a `maxRetries` that is not a whole
-   *   number of 0 or more, or a `cacheTtlMs` that is negative or not finite.
-   * @throws PostcodeError `invalid_input` for an empty `apiKey`.
+   *   number of 0 or more, a `cacheTtlMs` that is negative or not finite, or an empty `apiKey`.
    * @throws TypeError for a secret key in a web page.
    */
   constructor(options: ClientOptions = {}) {
