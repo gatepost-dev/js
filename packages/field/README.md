@@ -20,7 +20,7 @@ pnpm add @gatepost/field
 
 The first alpha is not on npm yet, so this command and the CDN address below work only after its release.
 
-Import `@gatepost/field` once in your app, and the page can use the element. A page with no build step can load the one-file build from a CDN instead, as the quickstart does.
+Import `@gatepost/field` once in your app, and the page can use the element. A page with no build step can load the one-file build from a CDN instead, as the quickstart does. Once a release exists, pin its version in the CDN address of a production page.
 
 ## Quickstart
 
@@ -56,7 +56,7 @@ A user who types `fc 01 z99 zz 01` sends `postcode=FC-01-Z99-ZZ-01`. With no key
 </form>
 ```
 
-Use a publishable key, which starts with `nipost_pk_`, and add your site to its allowed origins in NIPOST's dashboard. Anyone can read a key in a page, so the field refuses a secret key: it sends no request, and it logs one console error for you. `confirm="level2"` needs a key with level 2 access.
+Use a publishable key, which starts with `nipost_pk_`, and add your site to its allowed origins in NIPOST's dashboard. Anyone can read a key in a page, so the field refuses a secret key: it sends no request, and it logs one console error for you. A key holds a lookup level, and a call above it fails. The field then says that it could not check the postcode. See [`@gatepost/client`](https://github.com/gatepost-dev/js/tree/main/packages/client#readme).
 
 A postcode that the gateway does not know, or a failed request, never stops the form. The gateway's data is new, so check the postcode again on your server.
 
@@ -101,7 +101,7 @@ The events bubble, so a page can listen on the form.
     --gatepost-accent: #5b2a86;
   }
 </style>
-<gatepost-postcode-field name="postcode"></gatepost-postcode-field>
+<gatepost-postcode-field name="postcode" required></gatepost-postcode-field>
 <script type="module">
   const field = document.querySelector('gatepost-postcode-field');
   field.messages = { label: 'Delivery postcode', empty: 'Enter the postcode of the delivery.' };
@@ -110,7 +110,7 @@ The events bubble, so a page can listen on the form.
 
 The `messages` property replaces messages by key, and the field keeps the English text for each key that you leave out. [`field_en.arb`](https://github.com/gatepost-dev/spec/blob/main/messages/field_en.arb) in the spec repo lists each key, with a note on when it shows.
 
-Set the properties `messages` and `value` only after the browser defines the element. A property that you set earlier is lost. Module scripts run in order, so a module script below the field's script is safe. Other code can wait for `customElements.whenDefined('gatepost-postcode-field')`.
+You can set the properties `messages` and `value` before the browser defines the element, for example when a framework renders the field before the script loads. The field takes them when it starts.
 
 The tokens are `--gatepost-text`, `--gatepost-muted`, `--gatepost-background`, `--gatepost-border`, `--gatepost-accent`, `--gatepost-error`, `--gatepost-warning`, `--gatepost-radius` and `--gatepost-font`. The defaults meet a contrast of 4.5:1 on white. Check your own colours on your page's background. The parts `field`, `label`, `hint`, `input`, `message` and `button` take `::part()` rules.
 

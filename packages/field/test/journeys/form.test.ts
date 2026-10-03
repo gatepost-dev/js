@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 
 const MOCK = 'http://127.0.0.1:4010';
 const KEY = 'nipost_pk_test_mock';
@@ -172,7 +173,10 @@ test('permission denied: says so, and the user types the postcode', async ({ pag
     'We cannot use your location. Type your postcode.',
   );
   await expectAccessible(page);
-  await page.getByLabel('Postcode').fill('FC01Z99ZZ01');
+  // The button has the focus. Shift+Tab goes back to the input, and the user types at once.
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByLabel('Postcode')).toBeFocused();
+  await page.keyboard.type('FC01Z99ZZ01');
   await expect(page.getByRole('status')).toHaveText(
     'We found this postcode in Federal Capital Territory.',
   );
@@ -180,26 +184,35 @@ test('permission denied: says so, and the user types the postcode', async ({ pag
 
 test('refuses a secret key without a request, and logs one error', async ({ page }) => {
   const errors: string[] = [];
+  const uncaught: string[] = [];
   const requests: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') {
       errors.push(message.text());
     }
   });
+  page.on('pageerror', (error) => uncaught.push(error.message));
   page.on('request', (request) => requests.push(request.url()));
   await page.goto(`/form?api-key=nipost_live_abc&base-url=${MOCK}`);
   await page.getByLabel('Postcode').fill('FC01Z99ZZ01');
   await expect(page.getByRole('status')).toHaveText(
     'We cannot check postcodes on this page. You can still continue.',
   );
-  expect(errors).toHaveLength(1);
-  expect(requests.filter((url) => url.startsWith(MOCK))).toEqual([]);
+  // The exact text also shows that the message never holds the key.
+  expect(errors).toEqual([
+    'gatepost-postcode-field: api-key holds a secret key. Use a publishable key.',
+  ]);
+  expect(uncaught).toEqual([]);
+  expect(requests.filter((url) => !url.startsWith('http://localhost:3000/'))).toEqual([]);
 });
 
 test('fits a screen 320 CSS pixels wide without a sideways scroll', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto('/form?gps');
+  await page.goto(`${LOOKUPS}&gps`);
   await page.getByLabel('Postcode').fill('FCO1Z99ZZ01');
+  // The suggestion and the location button are the widest content that the field shows.
+  await expect(page.getByRole('button', { name: 'Use this postcode' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use my location' })).toBeVisible();
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(320);
 });
@@ -214,4 +227,70 @@ test('stops the spinner for a user who asks for reduced motion', async ({ page }
     .locator('gatepost-postcode-field #note')
     .evaluate((note) => getComputedStyle(note, '::before').animationName);
   expect(animation).toBe('none');
+});
+
+test('a postcode that comes by paste raises a change with the source pasted', async ({ page }) => {
+  await page.goto('/form');
+  await page.evaluate(() => {
+    const sources: string[] = [];
+    Object.assign(window, { sources });
+    document.addEventListener('gatepost-change', (event) => {
+      sources.push((event as CustomEvent<{ source: string }>).detail.source);
+    });
+  });
+  // Playwright cannot paste in every engine, so the test sends the event that a paste raises.
+  const input = page.getByLabel('Postcode');
+  await input.focus();
+  await input.evaluate((element: HTMLInputElement) => {
+    element.value = 'fc 01 z99 zz 01';
+    element.dispatchEvent(
+      new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true, composed: true }),
+    );
+  });
+  const sources = await page.evaluate(() => (window as unknown as { sources: string[] }).sources);
+  expect(sources).toEqual(['pasted']);
+  await page.keyboard.press('Enter');
+  await page.waitForURL('**/submitted?**');
+  expect(await sent(page)).toEqual({ postcode: 'FC-01-Z99-ZZ-01' });
+});
+
+test('a slow lookup does not stop the form', async ({ page }) => {
+  // The request never ends, so the field stays in the state checking.
+  await page.route(`${MOCK}/**`, () => undefined);
+  await page.goto(LOOKUPS);
+  await page.getByLabel('Postcode').fill('FC01Z99ZZ01');
+  await expect(page.getByRole('status')).toHaveText('Checking your postcode.');
+  await page.keyboard.press('Enter');
+  await page.waitForURL('**/submitted?**');
+  expect(await sent(page)).toEqual({ postcode: 'FC-01-Z99-ZZ-01' });
+});
+
+test('the suggestion button fixes a look-alike character from the keyboard', async ({ page }) => {
+  await page.goto('/form');
+  const input = page.getByLabel('Postcode');
+  await input.fill('FCO1Z99ZZ01');
+  await page.keyboard.press('Tab');
+  const button = page.getByRole('button', { name: 'Use this postcode' });
+  await expect(button).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(input).toHaveValue('FC 01 Z99 ZZ 01');
+  await expect(input).toBeFocused();
+});
+
+test('the back button brings back the typed text', async ({ page }) => {
+  await page.goto('/form');
+  const input = page.getByLabel('Postcode');
+  await input.fill('FC01Z99ZZ01');
+  await page.keyboard.press('Enter');
+  await page.waitForURL('**/submitted?**');
+  await page.goBack();
+  await expect(page).toHaveURL(/\/form/);
+  await expect(input).toHaveValue('FC01Z99ZZ01');
+  await expect(page.getByRole('status')).toHaveText(
+    'This postcode is in Federal Capital Territory.',
+  );
+  await input.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForURL('**/submitted?**');
+  expect(await sent(page)).toEqual({ postcode: 'FC-01-Z99-ZZ-01' });
 });

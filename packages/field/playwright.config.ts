@@ -8,7 +8,7 @@ export default defineConfig({
   testMatch: '**/*.test.ts',
   forbidOnly: true,
   reporter: 'list',
-  use: { baseURL: 'http://localhost:3000' },
+  use: { baseURL: 'http://localhost:3000', trace: 'retain-on-failure' },
   webServer: {
     command: 'node test/journeys/serve.mjs',
     url: 'http://localhost:3000/form',

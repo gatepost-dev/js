@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 
 const README = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
 const EXAMPLES = [...README.matchAll(/```html\n([\s\S]*?)```/g)].map((match) => match[1] ?? '');
@@ -28,7 +29,11 @@ async function open(page: Page, example: string): Promise<void> {
 test('the README holds the four HTML examples that these tests run', () => {
   expect(EXAMPLES).toHaveLength(4);
   expect(README).toContain('> Unofficial. Not made or endorsed by NIPOST.');
-  expect(README).toMatch(/Gatepost spec \| 0\.3\.0 +\|/);
+  const version = readFileSync(new URL('../../../../spec/VERSION', import.meta.url), 'utf8').trim();
+  expect(README).toMatch(new RegExp(`Gatepost spec \\| ${version.replaceAll('.', '\\.')} +\\|`));
+  expect(README).toContain('The first alpha is not on npm yet');
+  // The CDN address names this file of the package, which the test replaces with the build.
+  expect(existsSync(ELEMENT)).toBe(true);
 });
 
 test('the quickstart sends the canonical form', async ({ page }) => {
@@ -61,17 +66,20 @@ test('the change example shows each new form value', async ({ page }) => {
   await expect(page.locator('#chosen')).toHaveText('FC-01-Z99-ZZ-01');
 });
 
-test('the theming example changes the label and the accent colour', async ({ page }) => {
+test('the theming example changes the label, the messages and the accent colour', async ({
+  page,
+}) => {
   await open(page, EXAMPLES[3]!);
   const field = page.getByLabel('Delivery postcode');
-  await expect(field).toBeVisible();
-  const accent = await page
-    .locator('gatepost-postcode-field')
-    .evaluate((element) => getComputedStyle(element).getPropertyValue('--gatepost-accent').trim());
-  expect(accent).toBe('#5b2a86');
+  await field.focus();
+  // The outline of the focused input is the field's own use of the accent token.
+  const outline = await field.evaluate((input) => getComputedStyle(input).outlineColor);
+  expect(outline).toBe('rgb(91, 42, 134)');
+  await field.blur();
+  await expect(page.getByRole('status')).toHaveText('Enter the postcode of the delivery.');
 });
 
-test('a property set before the element is defined is lost, as the README warns', async ({
+test('a property set before the element is defined reaches the field, now and later', async ({
   page,
 }) => {
   await page.route('http://localhost:3000/early', (route) =>
@@ -88,27 +96,10 @@ test('a property set before the element is defined is lost, as the README warns'
     }),
   );
   await page.goto('/early');
-  await expect(page.getByLabel('Postcode')).toBeVisible();
-  await expect(page.getByLabel('Early')).toHaveCount(0);
-  expect(README).toContain('A property that you set earlier is lost.');
-});
-
-test('a property set after whenDefined reaches the element', async ({ page }) => {
-  await page.route('http://localhost:3000/late', (route) =>
-    route.fulfill({
-      contentType: 'text/html',
-      body: [
-        '<!doctype html><html lang="en-GB"><title>Late</title>',
-        '<gatepost-postcode-field name="postcode"></gatepost-postcode-field>',
-        '<script type="module" src="/element.js"></script>',
-        '<script>',
-        "  customElements.whenDefined('gatepost-postcode-field').then(() => {",
-        "    document.querySelector('gatepost-postcode-field').messages = { label: 'Late' };",
-        '  });',
-        '</script></html>',
-      ].join('\n'),
-    }),
-  );
-  await page.goto('/late');
-  await expect(page.getByLabel('Late')).toBeVisible();
+  await expect(page.getByLabel('Early')).toBeVisible();
+  await page.evaluate(() => {
+    const field = document.querySelector('gatepost-postcode-field');
+    Object.assign(field ?? {}, { messages: { label: 'Later' } });
+  });
+  await expect(page.getByLabel('Later')).toBeVisible();
 });

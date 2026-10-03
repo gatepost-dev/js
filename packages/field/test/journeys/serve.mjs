@@ -23,6 +23,8 @@ function page(title, body) {
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${title}</title>`,
+    // An empty icon, so no browser asks for /favicon.ico and logs a 404.
+    '<link rel="icon" href="data:,">',
     // The page's own button meets the target size of WCAG 2.2, so axe checks only the field.
     '<style>form > button { min-height: 2.75rem }</style>',
     '<script type="module" src="/element.js"></script>',
@@ -68,4 +70,6 @@ createServer((request, response) => {
   }
   const [type, body] = route(url.searchParams);
   response.writeHead(200, { 'Content-Type': `${type}; charset=utf-8` }).end(body);
+  // The tests reach the page as localhost. The server listens on the IPv4 address, which
+  // the browsers fall back to when localhost resolves to ::1 first.
 }).listen(3000, '127.0.0.1');
