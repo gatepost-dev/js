@@ -313,10 +313,12 @@ describe('a call that fails', () => {
         '</gatepost-postcode-field>',
     );
     const confirms = listen<ConfirmDetail>(form, 'gatepost-confirm');
+    const errors = listen<ErrorDetail>(form, 'gatepost-error');
     await userEvent.type(input, 'FC01Z99ZZ01');
     await vi.waitFor(() => {
       expect(message()).toBe(FAILED);
     });
+    expect(errors).toEqual([{ code: 'network_error' }]);
     expect(confirms).toEqual([]);
     expect(requests).toEqual([]);
     expect(field.checkValidity()).toBe(true);
@@ -332,7 +334,7 @@ describe('a call that fails', () => {
     await vi.waitFor(() => {
       expect(message()).toBe(FAILED);
     });
-    expect(errors).toEqual([]);
+    expect(errors).toEqual([{ code: 'network_error' }]);
     expect(field.checkValidity()).toBe(true);
     field.setAttribute('required', '');
     await vi.waitFor(() => {

@@ -549,11 +549,11 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
       if (work.signal.aborted) {
         return;
       }
-      // Any failure ends the request. Only an error of the client has a code for the event.
+      // Any failure ends the request. An error that is not the client's counts as a network error.
       this.#finish({ state: 'error', note: { key: 'check_failed' } });
-      if (error instanceof PostcodeError) {
-        this.#raise('gatepost-error', { code: error.code });
-      }
+      this.#raise('gatepost-error', {
+        code: error instanceof PostcodeError ? error.code : 'network_error',
+      });
     }
   }
 

@@ -119,7 +119,7 @@ export async function findFix(
   } catch (error) {
     // A cancelled call is the one failure that ends with no outcome.
     signal.throwIfAborted();
-    const code = error instanceof PostcodeError ? error.code : null;
+    const code = error instanceof PostcodeError ? error.code : 'network_error';
     return { kind: 'failed', key: 'gps_unavailable', code };
   }
   const postcode = postcodeAtFix(result, accuracy);

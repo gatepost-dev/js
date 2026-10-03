@@ -288,7 +288,7 @@ describe('the location button', () => {
     await vi.waitFor(() => {
       expect(message()).toBe(UNAVAILABLE);
     });
-    expect(errors).toEqual([]);
+    expect(errors).toEqual([{ code: 'network_error' }]);
     expect(requests).toEqual([]);
   });
 
@@ -301,7 +301,7 @@ describe('the location button', () => {
     await vi.waitFor(() => {
       expect(message()).toBe(UNAVAILABLE);
     });
-    expect(errors).toEqual([]);
+    expect(errors).toEqual([{ code: 'network_error' }]);
   });
 
   it('ends as a failed request when the device call throws a plain error', async () => {
