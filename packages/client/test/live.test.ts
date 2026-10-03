@@ -30,17 +30,19 @@ afterAll(async () => {
 describe('a gateway', () => {
   it('knows the test code at lookup level 1', async () => {
     const result = await client.lookup(code);
-    expect([result.valid, result.status, result.levelReceived]).toEqual([true, 'valid', 1]);
+    // Each check is a boolean, so that a failure prints no value that the gateway sent.
+    expect(result.valid && result.status === 'valid' && result.levelReceived === 1).toBe(true);
   });
 
   it('offers the state of the test code for its first letter', async () => {
     const result = await client.autocomplete(code.slice(0, 1));
-    expect(result.segment).toBe('state');
-    expect(result.suggestions.map((item) => item.postcode?.canonical)).toContain(code.slice(0, 2));
+    const states = result.suggestions.map((item) => item.postcode?.canonical);
+    expect(result.segment === 'state').toBe(true);
+    expect(states.includes(code.slice(0, 2))).toBe(true);
   });
 
   it('finds no postcode at sea, at latitude 0 and longitude 0', async () => {
     const result = await client.reverse(0, 0);
-    expect([result.found, result.unit]).toEqual([false, null]);
+    expect(!result.found && result.unit === null).toBe(true);
   });
 });

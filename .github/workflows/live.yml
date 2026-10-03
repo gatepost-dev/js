@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   staging:
+    # A fork has no secrets and makes no call, so it need not run the job.
+    if: github.repository == 'gatepost-dev/js'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
