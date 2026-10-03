@@ -117,6 +117,7 @@ describe('readReverse', () => {
       { distance_m: 4.2 },
       { postcode: 'FC-01-Z99-ZZ-01' },
       { postcode: 'FC-01-Z99-ZZ-01', distance_m: '4.2' },
+      { postcode: 'FC-01-Z99-ZZ-01', distance_m: Number.POSITIVE_INFINITY },
       'FC-01-Z99-ZZ-01',
     ];
     for (const unit of units) {
@@ -165,6 +166,7 @@ describe('readReverse', () => {
   it('gives a null radius when the body has none or a radius that is not a number', () => {
     expect(readReverse({ found: false }).radiusM).toBeNull();
     expect(readReverse({ found: false, radius_m: '25' }).radiusM).toBeNull();
+    expect(readReverse({ found: false, radius_m: Number.POSITIVE_INFINITY }).radiusM).toBeNull();
     expect(readReverse(base).radiusM).toBe(250);
   });
 
@@ -199,13 +201,15 @@ describe('readAutocomplete', () => {
     expect(result.suggestions).toEqual([{ code: '00', label: null, postcode: null }]);
   });
 
-  it('leaves out each item that has no text in code', () => {
-    const suggestions = [{ code: 'FC', label: 'SYNTHETIC' }, { label: 'x' }, 'FC', null];
-    const result = readAutocomplete({ segment: 'state', suggestions }, 'F');
-    expect(result.suggestions.map((item) => [item.code, item.label])).toEqual([
-      ['FC', 'SYNTHETIC'],
-    ]);
-  });
+  it.each([[{ label: 'x' }], ['FC'], [null], [{ code: 7 }]])(
+    'gives unexpected_response for the item %j, and returns no empty value',
+    (item) => {
+      const data = { segment: 'state', suggestions: [{ code: 'FC' }, item] };
+      const error = unexpected(() => readAutocomplete(data, 'F'));
+      expect(error.status).toBe(200);
+      expect(error.message).toContain('Try again later, or update the client.');
+    },
+  );
 
   it.each([
     { segment: 'street', suggestions: [] },

@@ -24,6 +24,10 @@ function isFields(json: unknown): json is Fields {
   return typeof json === 'object' && json !== null && !Array.isArray(json);
 }
 
+function isNumber(field: unknown): field is number {
+  return typeof field === 'number' && Number.isFinite(field);
+}
+
 function textOf(fields: Fields, name: string): string | null {
   const field = fields[name];
   return typeof field === 'string' ? field : null;
@@ -39,7 +43,8 @@ function oneOf<T extends string>(allowed: readonly T[], field: unknown): T | nul
 
 // The readers see only responses with status 200, so the error carries that status.
 function unexpected(what: string): never {
-  const message = `The gateway sent a reply that this client cannot read: ${what}.`;
+  const reply = 'The gateway sent a reply that this client cannot read';
+  const message = `${reply}: ${what}. Try again later, or update the client.`;
   throw new PostcodeError('unexpected_response', message, { status: 200 });
 }
 
@@ -133,7 +138,7 @@ function unitOf(unit: unknown): ReverseUnit | null {
   if (unit === undefined || unit === null) {
     return null;
   }
-  if (!isFields(unit) || typeof unit['distance_m'] !== 'number') {
+  if (!isFields(unit) || !isNumber(unit['distance_m'])) {
     return unexpected('the unit of a reverse result has no distance_m of type number');
   }
   const parsed = parse(textOf(unit, 'postcode') ?? '');
@@ -167,7 +172,7 @@ export function readReverse(data: unknown): ReverseResult {
   const radius = data['radius_m'];
   return {
     found: data['found'],
-    radiusM: typeof radius === 'number' ? radius : null,
+    radiusM: isNumber(radius) ? radius : null,
     unit: unitOf(data['unit']),
     area: textOf(data, 'area'),
     district: textOf(data, 'district'),
@@ -193,9 +198,9 @@ function suggestedPostcode(typed: string, code: string, segment: Precision): Pos
  *
  * @param data - The `data` field of the response.
  * @param typed - The normalised text that the request sent.
- * @returns The autocomplete result. An item with no text in `code` is left out.
- * @throws PostcodeError `unexpected_response` when `segment` is not a segment name, or
- *   `suggestions` is not a list.
+ * @returns The autocomplete result.
+ * @throws PostcodeError `unexpected_response` when `segment` is not a segment name,
+ *   `suggestions` is not a list, or an item of the list has no text in `code`.
  * @internal
  */
 export function readAutocomplete(data: unknown, typed: string): AutocompleteResult {
@@ -204,13 +209,13 @@ export function readAutocomplete(data: unknown, typed: string): AutocompleteResu
   if (segment === null || !Array.isArray(items)) {
     return unexpected('the autocomplete has no known segment or no suggestions list');
   }
-  const suggestions = items.filter(isFields).flatMap((item) => {
-    const code = textOf(item, 'code');
-    if (code === null) {
-      return [];
+  const suggestions = items.map((item: unknown) => {
+    const code = isFields(item) ? textOf(item, 'code') : null;
+    if (!isFields(item) || code === null) {
+      return unexpected('a suggestion of the autocomplete has no text in code');
     }
     const postcode = suggestedPostcode(typed, code, segment);
-    return [{ code, label: textOf(item, 'label'), postcode }];
+    return { code, label: textOf(item, 'label'), postcode };
   });
   return { segment, suggestions };
 }

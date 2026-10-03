@@ -23,10 +23,9 @@ function isOverInputLimit(text: string): boolean {
 
 // The shortest decimal form that reads back as the same number, with no exponent. Every
 // client prints the same query for the same input, whatever its language prints for a number.
+// Every number that reaches this function is at most 250 in size, so only a number below 1e-6
+// prints with an exponent, and it has a negative one.
 function decimal(value: number): string {
-  if (value === 0) {
-    return '0';
-  }
   const printed = String(value);
   const parts = EXPONENT_FORM.exec(printed);
   if (parts === null) {
@@ -34,14 +33,7 @@ function decimal(value: number): string {
   }
   const [, sign = '', first = '', rest = '', exponent = '0'] = parts;
   const digits = first + rest;
-  const point = 1 + Number(exponent);
-  if (point <= 0) {
-    return `${sign}0.${'0'.repeat(-point)}${digits}`;
-  }
-  if (point >= digits.length) {
-    return `${sign}${digits}${'0'.repeat(point - digits.length)}`;
-  }
-  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+  return `${sign}0.${'0'.repeat(-1 - Number(exponent))}${digits}`;
 }
 
 function requireRange(name: string, value: unknown, min: number, max: number): number {
