@@ -1,14 +1,14 @@
 {
-  "name": "@gatepost/core",
-  "version": "0.1.0-alpha.0",
-  "description": "Unofficial. Not made or endorsed by NIPOST. Parse Nigerian postcodes offline.",
+  "name": "@gatepost/client",
+  "version": "0.0.0",
+  "description": "Unofficial. Not made or endorsed by NIPOST. Call NIPOST's postcode gateway.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/core#readme",
+  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/client#readme",
   "bugs": "https://github.com/gatepost-dev/js/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gatepost-dev/js.git",
-    "directory": "packages/core"
+    "directory": "packages/client"
   },
   "type": "module",
   "sideEffects": false,
@@ -35,13 +35,18 @@
   "size-limit": [
     {
       "path": "dist/index.js",
-      "limit": "4 KB"
+      "limit": "6 KB"
     }
   ],
+  "dependencies": {
+    "@gatepost/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@gatepost/mock-server": "workspace:*"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --coverage",
-    "mutation": "stryker run",
     "build": "tsdown",
     "package:check": "run-s package:lint package:smoke",
     "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",

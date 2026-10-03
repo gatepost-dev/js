@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+name: live
+
+# Each night, the client makes three calls to NIPOST's staging gateway with the test key: a
+# lookup of a test code from NIPOST's docs, an autocomplete and a reverse geocode at sea. The
+# contract scenarios cannot run there, because they need the scripted answers of the mock server.
+# A failure means that the gateway changed. The job prints no response.
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    # A fork has no secrets and makes no call, so it need not run the job.
+    if: github.repository == 'gatepost-dev/js'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Call the staging gateway
+        env:
+          GATEPOST_LIVE_URL: ${{ secrets.NIPOST_STAGING_URL }}
+          GATEPOST_LIVE_KEY: ${{ secrets.NIPOST_TEST_SECRET_KEY }}
+          # A test code from NIPOST's docs. The gateway knew it on 2 Oct 2026.
+          GATEPOST_LIVE_CODE: FC-03-B06-AG-12
+        run: |
+          if [ -z "$GATEPOST_LIVE_URL" ]; then
+            echo "::notice::NIPOST has not given a staging URL yet, so the job makes no call."
+            exit 0
+          fi
+          pnpm --filter @gatepost/client exec vitest run test/live.test.ts

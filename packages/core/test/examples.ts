@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -10,6 +10,73 @@ import * as core from '../src/index.js';
 export interface Example {
   readonly name: string;
   readonly source: string;
+}
+
+/**
+ * The module that each package name in an example stands for. A path is relative to the folder
+ * of the module that the test writes, or absolute.
+ */
+export type Sources = Readonly<Record<string, string>>;
+
+// The examples of the core run against its source.
+const CORE_SOURCES: Sources = { '@gatepost/core': '../../src/index.js' };
+
+/** The doc comments of one source file, each without its asterisks. */
+export interface SourceDocs {
+  readonly file: string;
+  readonly docs: readonly string[];
+}
+
+const DOC_COMMENT = /\/\*\*[\s\S]*?\*\//g;
+
+// The text of a doc comment without its asterisks, so that a code fence starts a line.
+function docText(comment: string): string {
+  return comment
+    .replace(/^\/\*\*/, '')
+    .replace(/\*\/$/, '')
+    .split('\n')
+    .map((line) => line.replace(/^\s*\* ?/, ''))
+    .join('\n');
+}
+
+/**
+ * Reads the doc comments of each TypeScript file in a folder.
+ *
+ * @param folder - The folder, such as the `src` folder of a package.
+ * @returns The doc comments of each file, in the order of the file names.
+ */
+export function readDocComments(folder: URL): readonly SourceDocs[] {
+  return readdirSync(folder)
+    .filter((name) => name.endsWith('.ts'))
+    .sort()
+    .map((file) => {
+      const text = readFileSync(new URL(file, folder), 'utf8');
+      return {
+        file,
+        docs: Array.from(text.matchAll(DOC_COMMENT), ([comment]) => docText(comment)),
+      };
+    });
+}
+
+/**
+ * Finds the code of each `@example` tag. Each tag must hold a code fence, or its code would never
+ * run.
+ *
+ * @param sources - The doc comments of each file.
+ * @returns The examples, named after their files.
+ */
+export function docExamples(sources: readonly SourceDocs[]): readonly Example[] {
+  return sources.flatMap(({ file, docs }) => {
+    const sections = docs.flatMap((doc) => doc.split(/^@example\b/m).slice(1));
+    const blocks = sections.flatMap((section, index) => {
+      const inSection = tsBlocks(section);
+      if (inSection.length === 0) {
+        throw new Error(`The @example number ${String(index)} in ${file} has no ts code fence.`);
+      }
+      return inSection;
+    });
+    return blocks.map((source, index) => ({ name: `${file} example ${String(index)}`, source }));
+  });
 }
 
 // A line such as `canonical; // 'EK-01-A03-FK-01'` states a result. The test turns it into a call
@@ -62,13 +129,15 @@ function withImports(source: string): string {
  * Turns an example into a module that checks each result that the example shows.
  *
  * @param example - The code of the example.
- * @returns The text of a TypeScript module that imports the package from its source.
+ * @param sources - The module for each package name. The default is the source of the core.
+ * @returns The text of a TypeScript module that imports each package from its source.
  */
-export function toModule(example: string): string {
-  const source = withImports(example)
-    .replaceAll("'@gatepost/core'", "'../../src/index.js'")
-    .replace(SHOWN_RESULT, '$1strictEqual($2, $3);');
-  return `${COUNTING_PREAMBLE}\n${source}`;
+export function toModule(example: string, sources: Sources = CORE_SOURCES): string {
+  const imported = Object.entries(sources).reduce(
+    (source, [name, module]) => source.replaceAll(`'${name}'`, `'${module}'`),
+    withImports(example),
+  );
+  return `${COUNTING_PREAMBLE}\n${imported.replace(SHOWN_RESULT, '$1strictEqual($2, $3);')}`;
 }
 
 /**
@@ -97,8 +166,9 @@ export function unreadableResults(source: string): readonly string[] {
  * wrong or is not compared.
  *
  * @param examples - The examples to run.
+ * @param sources - The module for each package name. The default is the source of the core.
  */
-export function runExamples(examples: readonly Example[]): void {
+export function runExamples(examples: readonly Example[], sources: Sources = CORE_SOURCES): void {
   let folder: string;
 
   beforeAll(() => {
@@ -121,7 +191,7 @@ export function runExamples(examples: readonly Example[]): void {
         [],
       );
       const file = join(folder, `example-${String(index)}.ts`);
-      writeFileSync(file, toModule(source));
+      writeFileSync(file, toModule(source, sources));
       const { checkedResults } = (await import(pathToFileURL(file).href)) as {
         checkedResults: number;
       };

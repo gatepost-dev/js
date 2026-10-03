@@ -12,6 +12,7 @@ TypeScript packages for Nigeria's National Digital Postcode.
 | Package                                         | What it does                                        |
 | ----------------------------------------------- | --------------------------------------------------- |
 | [`@gatepost/core`](packages/core)               | Parse, check and format postcodes offline.          |
+| [`@gatepost/client`](packages/client)           | Call NIPOST's gateway, with retries and limits.     |
 | [`@gatepost/mock-server`](packages/mock-server) | Mock NIPOST's gateway for client tests. Not on npm. |
 
 ## Develop
@@ -22,12 +23,12 @@ You need Node 24, `corepack enable`, Python 3.11 or later and `uv`.
     pnpm install
     pnpm check
 
-`pnpm check` also builds the package. Then it runs publint, attw, size-limit and API Extractor on
-the result, and it starts the built package once. It checks the licence of each dependency and of
+`pnpm check` also builds the packages. Then it runs publint, attw, size-limit and API Extractor on
+the result, and it starts each built package once. It checks the licence of each dependency and of
 each file, and it checks the workflows with zizmor. It starts REUSE and zizmor with `uvx` at pinned
 versions. REUSE needs an encoding detector, and `uvx` installs REUSE without one, so the script pins
-`charset-normalizer` as well. Renovate updates the three pins. After a change to the public API, run
-`pnpm --filter @gatepost/core run api:update` and commit `packages/core/etc/core.api.md`. For each
+`charset-normalizer` as well. Renovate updates the three pins. After a change to the public API of a
+package, run `pnpm --filter <package> run api:update` and commit its `etc/<name>.api.md`. For each
 change to a package, add a change file with `pnpm changeset`, or with `pnpm changeset --empty` when
 the change needs no release. The pull request job fails without a change file.
 
