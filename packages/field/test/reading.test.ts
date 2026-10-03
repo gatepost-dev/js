@@ -45,4 +45,20 @@ describe('readText', () => {
     expect(atLimit.kind === 'error' && atLimit.count).toBe(1);
     expect(overLimit.kind === 'error' && overLimit.count).toBe(limit + 1);
   });
+
+  it('counts code points, not UTF-16 units, at the limit and above it', () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    const inside = readText(emoji.repeat(33));
+    const above = readText(emoji.repeat(65));
+    expect(inside.kind === 'error' && inside.code).toBe('bad_character');
+    expect(inside.kind === 'error' && inside.count).toBe(33);
+    expect(above.kind === 'error' && above.count).toBe(65);
+  });
+
+  it('reads full-width digits of an old postcode as ASCII digits', () => {
+    const fullWidth = Array.from('900108', (digit) =>
+      String.fromCodePoint(digit.charCodeAt(0) + 0xfee0),
+    ).join('');
+    expect(readText(fullWidth)).toEqual({ kind: 'legacy', digits: '900108' });
+  });
 });

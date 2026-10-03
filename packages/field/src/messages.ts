@@ -7,15 +7,18 @@ import type { MessageKey } from './spec-messages.js';
 const PLACEHOLDER = /\{(\w+)\}/g;
 
 // The grammar lets only the LGA, the area and the unit fail a segment check: the state fails as
-// an unknown state, and the district takes any letters and digits.
+// an unknown state, and the district takes any letters and digits. Any other segment means that
+// the core changed, so the field fails loudly instead of showing a wrong message.
 function segmentKey(segment: Precision | null): MessageKey {
   switch (segment) {
     case 'lga':
       return 'bad_lga';
     case 'area':
       return 'bad_area';
-    default:
+    case 'unit':
       return 'bad_unit';
+    default:
+      throw new RangeError(`The core reported a segment error for ${String(segment)}.`);
   }
 }
 
@@ -54,7 +57,7 @@ export function fill(
   values: Readonly<Partial<Record<string, string | number>>>,
 ): string {
   return template.replace(PLACEHOLDER, (placeholder, name: string) => {
-    const value = values[name];
+    const value = Object.hasOwn(values, name) ? values[name] : undefined;
     return value === undefined ? placeholder : String(value);
   });
 }

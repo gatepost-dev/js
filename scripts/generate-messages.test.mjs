@@ -101,10 +101,45 @@ describe('generate-messages.mjs', () => {
       writeFileSync(generatedFile(root), NOT_GENERATED);
       const { status, stderr } = generate(root);
       assert.equal(status, 1);
-      assert.ok(stderr.includes(problem), stderr);
+      assert.equal(stderr, `${problem}\n`);
       assert.equal(readFileSync(generatedFile(root), 'utf8'), NOT_GENERATED);
     });
   }
+
+  it('escapes a quote and a backslash, and writes a character above U+FFFF as two escapes', () => {
+    const slash = String.fromCharCode(0x5c);
+    const root = copyOfRepo((catalogue) => {
+      catalogue.label = `a'b${slash}c${String.fromCodePoint(0x1f600)}`;
+    });
+    generate(root);
+    const text = readFileSync(generatedFile(root), 'utf8');
+    const expected = `  label: 'a${slash}'b${slash}${slash}c${slash}ud83d${slash}ude00',`;
+    assert.ok(text.includes(expected), text);
+  });
+
+  it('rejects a catalogue with no message and writes nothing', () => {
+    const root = copyOfRepo((catalogue) => {
+      for (const key of Object.keys(catalogue)) {
+        if (!key.startsWith('@')) {
+          Reflect.deleteProperty(catalogue, key);
+        }
+      }
+    });
+    writeFileSync(generatedFile(root), NOT_GENERATED);
+    const { status, stderr } = generate(root);
+    assert.equal(status, 1);
+    assert.equal(stderr, 'The catalogue has no message.\n');
+    assert.equal(readFileSync(generatedFile(root), 'utf8'), NOT_GENERATED);
+  });
+
+  it('says that the file is out of date with --check when the file is missing', () => {
+    const { status, stderr } = generate(copyOfRepo(), '--check');
+    assert.equal(status, 1);
+    assert.equal(
+      stderr,
+      'packages/field/src/spec-messages.ts is out of date. Run pnpm generate.\n',
+    );
+  });
 
   it('rejects an unknown argument with exit code 2', () => {
     const { status, stderr } = generate(copyOfRepo(), '--chek');

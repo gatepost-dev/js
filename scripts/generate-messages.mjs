@@ -45,6 +45,9 @@ function readMessages() {
       throw new Error(`The message ${JSON.stringify(key)} is not text.`);
     }
   }
+  if (keys.length === 0) {
+    throw new Error('The catalogue has no message.');
+  }
   return keys.map((key) => [key, catalogue[key]]);
 }
 
@@ -84,9 +87,24 @@ if (unknown !== undefined) {
   process.exit(2);
 }
 
-const text = render(readMessages());
+// A reader of this output wants the problem, not a stack trace.
+function readCurrent() {
+  try {
+    return readFileSync(target, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+let text;
+try {
+  text = render(readMessages());
+} catch (error) {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.exit(1);
+}
 if (args.includes('--check')) {
-  if (readFileSync(target, 'utf8') !== text) {
+  if (readCurrent() !== text) {
     process.stderr.write(
       'packages/field/src/spec-messages.ts is out of date. Run pnpm generate.\n',
     );

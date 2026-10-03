@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import { fill, keyForReading } from '../src/messages.js';
-import { readText } from '../src/reading.js';
+import { readText, type Reading } from '../src/reading.js';
 
 describe('keyForReading', () => {
   it.each([
@@ -19,6 +19,17 @@ describe('keyForReading', () => {
   ] as const)('gives %j with legacy %s the message %s', (text, legacy, key) => {
     expect(keyForReading(readText(text), legacy)).toBe(key);
   });
+
+  it('refuses a segment error of a segment that the grammar never fails', () => {
+    const reading: Reading = {
+      kind: 'error',
+      code: 'bad_segment',
+      segment: 'district',
+      suggestion: null,
+      count: 11,
+    };
+    expect(() => keyForReading(reading, 'accept')).toThrow(RangeError);
+  });
 });
 
 describe('fill', () => {
@@ -34,5 +45,9 @@ describe('fill', () => {
 
   it('leaves a placeholder with no value in view, so a wrong translation shows', () => {
     expect(fill('Hello {name}.', {})).toBe('Hello {name}.');
+  });
+
+  it('does not read a placeholder as the name of an inherited property', () => {
+    expect(fill('a {toString} b {constructor}', {})).toBe('a {toString} b {constructor}');
   });
 });

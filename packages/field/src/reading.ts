@@ -23,12 +23,18 @@ export type Reading =
 // The core reads at most 64 code points (maxInputCodePoints in spec/data/format.json), and
 // normalize has no limit, so the field never normalises a longer text. Such a text is no
 // postcode, and its own count is close enough for the message.
-const LONG_TEXT = 64;
+const INPUT_LIMIT = 64;
 
-// The grammar counts code points, not UTF-16 units, so Array.from splits the text.
+// The grammar counts code points, not UTF-16 units. A text above the limit is counted whole, but
+// the check stops at the first code point above the limit, so a long text is not split twice.
 function countOf(text: string): number {
-  const codePoints = Array.from(text).length;
-  return codePoints > LONG_TEXT ? codePoints : Array.from(normalize(text)).length;
+  const codePoints = text[Symbol.iterator]();
+  for (let seen = 0; seen <= INPUT_LIMIT; seen += 1) {
+    if (codePoints.next().done === true) {
+      return Array.from(normalize(text)).length;
+    }
+  }
+  return Array.from(text).length;
 }
 
 // A suggestion of the core is a canonical form that parses, so the field can show it in the
