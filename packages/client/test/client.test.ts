@@ -100,6 +100,18 @@ describe('the options', () => {
     expect(() => new PostcodeClient(options)).toThrow(message);
   });
 
+  it('refuses an empty key with invalid_input, because an empty header is no key', () => {
+    let thrown: unknown;
+    try {
+      new PostcodeClient({ apiKey: '' });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(PostcodeError);
+    expect((thrown as PostcodeError).code).toBe('invalid_input');
+    expect((thrown as PostcodeError).message).toContain('apiKey');
+  });
+
   it('refuses a secret key in a web page, and allows a publishable key there', () => {
     vi.stubGlobal('document', {});
     expect(() => new PostcodeClient({ apiKey: 'nipost_live_abc' })).toThrow(TypeError);
