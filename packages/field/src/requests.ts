@@ -47,17 +47,18 @@ export class Requests {
    *
    * @param wanted - The lookup that the text and the settings call for, or null.
    * @param textChanged - True when the text differs from the text of the last change.
-   * @returns True when the requests stay. False when the caller can start the wanted lookup.
+   * @returns True when it cancelled the requests, so the caller can start the wanted lookup.
+   *   False when the requests stay.
    */
-  keeps(wanted: Asked | null, textChanged: boolean): boolean {
+  cancelUnlessKept(wanted: Asked | null, textChanged: boolean): boolean {
     if (!textChanged && this.#locationOutcome()) {
-      return true;
+      return false;
     }
     if (sameAsked(wanted, this.asked) || sameAsked(wanted, this.remembered)) {
-      return true;
+      return false;
     }
     this.cancel();
-    return false;
+    return true;
   }
 
   /** Cancels the request in progress and forgets the remembered lookup and the outcome. */
@@ -80,6 +81,20 @@ export class Requests {
     const work = new AbortController();
     this.#work = work;
     this.outcome = outcome;
+    return work;
+  }
+
+  /**
+   * Starts a location request. It cancels the request in progress, and forgets the lookup in
+   * progress and the remembered lookup, so a later change never matches them.
+   *
+   * @param outcome - What shows while the request runs.
+   * @returns The controller that cancels the new request.
+   */
+  startLocation(outcome: Outcome): AbortController {
+    const work = this.start(outcome);
+    this.asked = null;
+    this.remembered = null;
     return work;
   }
 

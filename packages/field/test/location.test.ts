@@ -442,6 +442,20 @@ describe('the location button', () => {
     expect(message()).toBe(COARSE);
   });
 
+  it('cancels the request when a rewrite keeps the postcode of a lookup in progress', async () => {
+    const place = holdDevice();
+    const never = new Promise<Response>(() => undefined);
+    const { requests } = scriptGateway(never, never);
+    const { field, input, location } = mount(FIELD);
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await userEvent.click(location);
+    field.value = 'fc01z99zz01';
+    place(5);
+    await settle();
+    expect(input.value).toBe('fc01z99zz01');
+    expect(requests.map((request) => request.url.pathname)).toEqual(['/v1/lookup', '/v1/lookup']);
+  });
+
   it('turns off with the form', () => {
     const { location } = mount(`<fieldset disabled>${FIELD}</fieldset>`);
     expect(location.disabled).toBe(true);

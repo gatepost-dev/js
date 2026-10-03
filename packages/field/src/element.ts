@@ -414,7 +414,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   // A change that the requests do not keep cancels them. Then a whole postcode gets a lookup.
   #startLookup(reading: Reading, textChanged: boolean): void {
     const wanted = this.#wanted(reading);
-    if (!this.#requests.keeps(wanted, textChanged) && wanted !== null) {
+    if (this.#requests.cancelUnlessKept(wanted, textChanged) && wanted !== null) {
       if (reading.kind === 'postcode') {
         void this.#lookUp(reading.postcode, wanted);
       }
@@ -524,8 +524,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     if (this.#client === null) {
       return;
     }
-    const work = this.#requests.start({ state: 'locating', note: { key: 'locating' } });
-    this.#requests.remembered = null;
+    const work = this.#requests.startLocation({ state: 'locating', note: { key: 'locating' } });
     this.#render();
     try {
       const fix = await findFix(() => this.#client, work.signal);
