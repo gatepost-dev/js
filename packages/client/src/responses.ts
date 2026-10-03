@@ -179,17 +179,15 @@ export function readReverse(data: unknown): ReverseResult {
   };
 }
 
-// The gateway sends the value of the active segment only. The typed segments before it, plus
-// that value, make a partial postcode of the active segment's precision. Only one cut of the
-// typed text gives that precision, so the loop needs no table of segment lengths.
+// The gateway sends the value of the active segment only. The typed text up to the start of that
+// segment, plus the value, makes a partial postcode. It counts when it has the precision of the
+// segment, so a value of the wrong length gives null.
+const SEGMENT_STARTS = [0, 2, 4, 7, 9];
+
 function suggestedPostcode(typed: string, code: string, segment: Precision): Postcode | null {
-  for (let end = typed.length - 1; end >= 0; end -= 1) {
-    const parsed = parse(typed.slice(0, end) + code, { allowPartial: true });
-    if (parsed.ok && parsed.value.precision === segment) {
-      return parsed.value;
-    }
-  }
-  return null;
+  const start = SEGMENT_STARTS[SEGMENTS.indexOf(segment)];
+  const parsed = parse(typed.slice(0, start) + code, { allowPartial: true });
+  return parsed.ok && parsed.value.precision === segment ? parsed.value : null;
 }
 
 /**

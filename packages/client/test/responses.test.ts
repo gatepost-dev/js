@@ -196,6 +196,21 @@ describe('readAutocomplete', () => {
     }
   });
 
+  it.each([
+    // The cut is at the start of the active segment, so the typed text of that segment is
+    // never part of the postcode, and a code of the wrong length gives no postcode.
+    ['FC01Z99', 'district', 'Z9', null],
+    ['FC01', 'lga', '1', null],
+    ['FC', 'lga', '01', 'FC-01'],
+    ['FC01Z', 'district', 'Z99X', null],
+  ] as const)(
+    'cuts the typed text at the segment start: %s, %s, %s',
+    (typed, segment, code, canonical) => {
+      const result = readAutocomplete({ segment, suggestions: [{ code }] }, typed);
+      expect(result.suggestions[0]?.postcode?.canonical ?? null).toBe(canonical);
+    },
+  );
+
   it('gives a null postcode when no cut of the typed text makes one', () => {
     const result = readAutocomplete({ segment: 'lga', suggestions: [{ code: '00' }] }, 'FC0');
     expect(result.suggestions).toEqual([{ code: '00', label: null, postcode: null }]);
