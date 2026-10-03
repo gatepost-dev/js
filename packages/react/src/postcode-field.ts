@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
-'use client';
 import '@gatepost/field';
 import type {
   ChangeDetail,
@@ -14,6 +13,8 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
   type ForwardedRef,
   type ForwardRefExoticComponent,
@@ -62,15 +63,38 @@ function flag(on: boolean | undefined): '' | undefined {
   return on === true ? '' : undefined;
 }
 
+// A layout effect runs before the browser paints, so the first paint shows the right text. A
+// server runs no effect, and React 18 warns about a layout effect there.
+const useBeforePaint = typeof document === 'undefined' ? useEffect : useLayoutEffect;
+
+// Gives the element to a ref of the caller. A callback ref of React 19 may return a cleanup, which
+// React then runs in place of a call with null.
 function forward(
   ref: ForwardedRef<PostcodeFieldElement>,
-  element: PostcodeFieldElement | null,
-): void {
+  element: PostcodeFieldElement,
+): (() => void) | undefined {
   if (typeof ref === 'function') {
-    ref(element);
-  } else if (ref !== null) {
+    const cleanup = (ref as (attached: PostcodeFieldElement) => unknown)(element);
+    return typeof cleanup === 'function' ? (cleanup as () => void) : undefined;
+  }
+  if (ref !== null) {
     ref.current = element;
   }
+  return undefined;
+}
+
+function sameMessages(
+  left: Partial<Messages> | undefined,
+  right: Partial<Messages> | undefined,
+): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left === undefined || right === undefined) {
+    return false;
+  }
+  const keys = Object.keys(left) as (keyof Messages)[];
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
 }
 
 interface Details {
@@ -101,25 +125,68 @@ function useEvent<Type extends keyof Details>(
 function render(props: PostcodeFieldProps, ref: ForwardedRef<PostcodeFieldElement>): ReactElement {
   const [element, setElement] = useState<PostcodeFieldElement | null>(null);
   const attach = useCallback(
-    (attached: PostcodeFieldElement | null) => {
+    (attached: PostcodeFieldElement | null): (() => void) | undefined => {
       setElement(attached);
-      forward(ref, attached);
+      if (attached !== null) {
+        const cleanup = forward(ref, attached);
+        return cleanup === undefined
+          ? undefined
+          : () => {
+              cleanup();
+              setElement(null);
+            };
+      }
+      if (typeof ref === 'function') {
+        ref(null);
+      } else if (ref !== null) {
+        ref.current = null;
+      }
+      return undefined;
     },
     [ref],
   );
-  const { messages } = props;
-  useEffect(() => {
-    if (element !== null && messages !== undefined) {
-      element.messages = messages;
+  // The element keeps the messages that it holds until a new object replaces them, so the effect
+  // sends an object only when its keys or texts changed, and an empty object when it went away.
+  const { messages, defaultValue } = props;
+  const [first] = useState(defaultValue);
+  const applied = useRef<{
+    element: PostcodeFieldElement | null;
+    messages: Partial<Messages> | undefined;
+  }>({ element: null, messages: undefined });
+  useBeforePaint(() => {
+    if (element === null) {
+      return;
+    }
+    if (applied.current.element !== element) {
+      applied.current = { element, messages: undefined };
+    }
+    if (!sameMessages(applied.current.messages, messages)) {
+      applied.current.messages = messages;
+      element.messages = messages ?? {};
     }
   }, [element, messages]);
+  // `defaultValue` is the attribute `value`: the first text, which a form reset restores. The
+  // server writes it as an attribute, and so does React 18. React 19 sets a prop of a custom
+  // element as a property when the element has one of that name, and the property `value` is
+  // the current text. So the prop keeps the first value for ever, and this effect writes each
+  // value as the attribute. A later value then changes the first text, never the typed text.
+  useBeforePaint(() => {
+    if (element === null) {
+      return;
+    }
+    if (defaultValue === undefined) {
+      element.removeAttribute('value');
+    } else if (element.getAttribute('value') !== defaultValue) {
+      element.setAttribute('value', defaultValue);
+    }
+  }, [element, defaultValue]);
   useEvent(element, 'gatepost-change', props.onChange);
   useEvent(element, 'gatepost-confirm', props.onConfirm);
   useEvent(element, 'gatepost-error', props.onError);
   return createElement('gatepost-postcode-field', {
     ref: attach,
     name: props.name,
-    value: props.defaultValue,
+    value: first,
     label: props.label,
     'api-key': props.apiKey,
     'base-url': props.baseUrl,
