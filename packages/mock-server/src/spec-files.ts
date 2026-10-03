@@ -250,3 +250,22 @@ export function fixtureReply(
   const data = objectIn(body['data'], `fixtures/${name}.json`);
   return jsonReply(fixture.status, { ...body, data: { ...data, ...changes } });
 }
+
+/**
+ * Reads one field of the `data` object of a fixture's body.
+ *
+ * @param files - The spec files.
+ * @param name - The fixture's path under `spec/fixtures`, without `.json`.
+ * @param fieldName - The field of `data`.
+ * @returns The value of the field.
+ * @throws Error when the spec has no such fixture, and TypeError when the body has no `data`.
+ * @internal
+ */
+export function fixtureData(files: SpecFiles, name: string, fieldName: string): unknown {
+  const fixture = files.fixtures.get(name);
+  if (fixture === undefined) {
+    throw new Error(`The spec has no fixture ${name}.`);
+  }
+  const body = objectIn(fixture.body, `fixtures/${name}.json`);
+  return objectIn(body['data'], `fixtures/${name}.json`)[fieldName];
+}

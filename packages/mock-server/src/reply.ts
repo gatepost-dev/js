@@ -53,3 +53,26 @@ export function jsonReply(
     delayMs: 0,
   };
 }
+
+/**
+ * Builds a reply with no body, such as the answer to a preflight request.
+ *
+ * @param status - The HTTP status.
+ * @returns The reply, with no delay.
+ * @internal
+ */
+export function emptyReply(status: number): SendReply {
+  return { kind: 'send', status, headers: {}, body: '', delayMs: 0 };
+}
+
+/**
+ * Adds headers to a reply that sends a response. A reply of another kind stays as it is.
+ *
+ * @param reply - The reply.
+ * @param headers - The headers to add. They replace a header of the same name.
+ * @returns The reply with the headers.
+ * @internal
+ */
+export function withHeaders(reply: Reply, headers: Readonly<Record<string, string>>): Reply {
+  return reply.kind === 'send' ? { ...reply, headers: { ...reply.headers, ...headers } } : reply;
+}
