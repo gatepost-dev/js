@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+# The image of the mock server needs these paths only. The rest, such as node_modules, stays out
+# of the build context.
+*
+!LICENSE
+!NOTICE
+!spec/data
+!spec/fixtures
+!spec/contract
+!packages/mock-server/package.json
+!packages/mock-server/src

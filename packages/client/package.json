@@ -1,0 +1,57 @@
+{
+  "name": "@gatepost/client",
+  "version": "0.0.0",
+  "description": "Unofficial. Not made or endorsed by NIPOST. Call NIPOST's postcode gateway.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/client#readme",
+  "bugs": "https://github.com/gatepost-dev/js/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gatepost-dev/js.git",
+    "directory": "packages/client"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "nigeria",
+    "postcode",
+    "address",
+    "nipost"
+  ],
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "6 KB"
+    }
+  ],
+  "dependencies": {
+    "@gatepost/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@gatepost/mock-server": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "build": "tsdown",
+    "package:check": "run-s package:lint package:smoke",
+    "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
+    "package:smoke": "node scripts/smoke.mjs",
+    "api:update": "api-extractor run --local",
+    "licence-files:check": "cmp ../../LICENSE LICENSE && cmp ../../NOTICE NOTICE"
+  }
+}

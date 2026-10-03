@@ -46,6 +46,7 @@
     "package:check": "run-s package:lint package:smoke",
     "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
     "package:smoke": "node scripts/smoke.mjs",
-    "api:update": "api-extractor run --local"
+    "api:update": "api-extractor run --local",
+    "licence-files:check": "cmp ../../LICENSE LICENSE && cmp ../../NOTICE NOTICE"
   }
 }

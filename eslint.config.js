@@ -120,6 +120,15 @@ export default defineConfig(
     },
   },
   {
+    // The mock server is a dev tool that runs on Node, not core code (CS-2), so it can use Node.
+    files: ['packages/mock-server/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+      'no-restricted-globals': 'off',
+      'no-restricted-properties': 'off',
+    },
+  },
+  {
     files: ['packages/*/test/**/*.ts'],
     rules: {
       // TS-4 allows non-null assertions in tests.
