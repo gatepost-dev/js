@@ -97,7 +97,7 @@ parse(code.padEnd(65)).ok; // false
 
 ### Clean typed text
 
-`normalize` cleans text that a user typed or pasted. It applies Unicode NFKC, removes white space, hyphens, dashes, full stops and some zero-width characters, and changes ASCII letters to upper case. It does not check the result. It has no input limit, so call `parse` for text from an untrusted source. The result depends on the Unicode version of the runtime. Spec 0.1.0 names Unicode 17.0, which Node 22.22.2 and later 22.x releases have, and so do Node 24.15.0 and later.
+`normalize` cleans text that a user typed or pasted. It applies Unicode NFKC, removes white space, hyphens, dashes, full stops and some zero-width characters, and changes ASCII letters to upper case. It does not check the result. It has no input limit, so call `parse` for text from an untrusted source. The result depends on the Unicode version of the runtime. The spec names Unicode 17.0, which Node 22.22.2 and later 22.x releases have, and so do Node 24.15.0 and later.
 
 ```ts
 import { normalize } from '@gatepost/core';
@@ -180,14 +180,14 @@ if (building.ok) {
 | ------------- | ----------------------------------- |
 | Node          | 22 or later, or any current browser |
 | Module format | ESM only                            |
-| Gatepost spec | 0.1.0                               |
+| Gatepost spec | 0.2.0                               |
 
 The package exports `SPEC_VERSION`, the version of the Gatepost spec that it implements.
 
 ```ts
 import { SPEC_VERSION } from '@gatepost/core';
 
-SPEC_VERSION; // '0.1.0'
+SPEC_VERSION; // '0.2.0'
 ```
 
 ## Docs
