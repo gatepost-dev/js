@@ -26,6 +26,8 @@ You need Node 24, `corepack enable`, Python 3.11 or later and `uv`.
     pnpm check
 
 The tests of the field run in Chromium, which Playwright installs once.
+`pnpm check` runs the journeys of the field too, with a test page on port 3000 and the mock server
+on port 4010, so both ports must be free.
 
 `pnpm check` also builds the packages. Then it runs publint, attw, size-limit and API Extractor on
 the result, and it starts each built package once. It checks the licence of each dependency and of

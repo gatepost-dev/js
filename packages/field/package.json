@@ -60,11 +60,15 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --coverage",
+    "test:browser": "playwright test --project=chromium",
     "build": "tsdown",
     "package:check": "run-s package:lint package:smoke",
     "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
     "package:smoke": "node scripts/smoke.mjs",
     "api:update": "api-extractor run --local",
     "licence-files:check": "cmp ../../LICENSE LICENSE && cmp ../../NOTICE NOTICE"
+  },
+  "devDependencies": {
+    "@gatepost/mock-server": "workspace:*"
   }
 }

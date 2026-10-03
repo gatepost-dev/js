@@ -18,6 +18,8 @@ export default defineConfig({
   },
   test: {
     include: ['test/**/*.test.ts'],
+    // Playwright runs the journeys against the built element, in three browser engines.
+    exclude: ['test/journeys/**'],
     setupFiles: ['test/setup.ts'],
     browser: {
       enabled: true,
