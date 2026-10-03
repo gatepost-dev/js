@@ -1,16 +1,33 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup-dark.svg">
-  <img src="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup.svg" alt="gatepost" height="48">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup-dark.svg">
+    <img src="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup.svg" alt="Gatepost" width="240">
+  </picture>
+</p>
 
-# @gatepost/field
+<h1 align="center">@gatepost/field</h1>
 
-A postcode field for any web form. It checks Nigeria's new postcode while the user types, and the form sends the postcode in its canonical form.
+<p align="center">A postcode field for any web form. It checks Nigeria's new postcode while the user types.</p>
+
+<p align="center">
+  <a href="https://github.com/gatepost-dev/js/actions/workflows/ci.yml"><img src="https://github.com/gatepost-dev/js/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/gatepost-dev/js/blob/main/LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat" alt="Licence: Apache-2.0"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/gatepost-dev/js"><img src="https://api.scorecard.dev/projects/github.com/gatepost-dev/js/badge" alt="OpenSSF Scorecard"></a>
+</p>
+
+<p align="center">
+  <a href="https://gatepost-dev.github.io/docs/">Docs</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://gatepost-dev.github.io/docs/playground/">Playground</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gatepost-dev/spec/blob/main/field.md">Field spec</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md">Contributing</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gatepost-dev/js/discussions">Discussions</a>
+</p>
 
 > Unofficial. Not made or endorsed by NIPOST.
-
-[![CI](https://github.com/gatepost-dev/js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gatepost-dev/js/actions/workflows/ci.yml)
-[![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](https://github.com/gatepost-dev/js/blob/main/LICENSE)
 
 ## Install
 
@@ -18,7 +35,7 @@ A postcode field for any web form. It checks Nigeria's new postcode while the us
 pnpm add @gatepost/field
 ```
 
-The first alpha is not on npm yet, so this command and the CDN address below work only after its release.
+The first alpha is not on npm yet, so this command and the CDN address below do not work today.
 
 Import `@gatepost/field` once in your app, and the page can use the element. A page with no build step can load the one-file build from a CDN instead, as the quickstart does. Once a release exists, pin its version in the CDN address of a production page.
 
@@ -36,16 +53,7 @@ The element is empty until the script runs, so the layout moves when it loads, a
 
 A user who types `fc 01 z99 zz 01` sends `postcode=FC-01-Z99-ZZ-01`. With no key, the field checks the format offline and sends no request.
 
-## What it does
-
-- Checks the format as the user types, and shows one plain message for each mistake. It waits until the user leaves the input, or until the text is long enough for a whole postcode.
-- Offers a fix for look-alike characters, such as the letter O in place of a zero, and uses it only when the user presses its button.
-- Accepts an old 6-digit postcode, or refuses it when you set `legacy="reject"`.
-- Submits the form on Enter, as a native input does.
-- With a publishable key, asks NIPOST's gateway about each whole postcode, and names its place.
-- With `gps`, puts the postcode of the user's location in the input, or only the part that the accuracy supports.
-- Works with the keyboard alone and with screen readers, and meets WCAG 2.2 AA on a light page. A dark page needs the colour tokens (see "Change the words and the look").
-- Stores nothing, sets no cookie and sends no telemetry.
+## Use
 
 ### Check postcodes with NIPOST
 
@@ -132,6 +140,18 @@ gatepost-postcode-field {
 
 The parts `field`, `label`, `hint`, `input`, `message` and `button` take `::part()` rules.
 
+## Features
+
+- Checks the format as the user types, and shows one plain message for each mistake. It waits until the user leaves the input, or until the text is long enough for a whole postcode.
+- Offers a fix for look-alike characters, such as the letter O in place of a zero, and uses it only when the user presses its button.
+- Accepts an old 6-digit postcode, or refuses it when you set `legacy="reject"`.
+- Submits the form on Enter, as a native input does.
+- With a publishable key, asks NIPOST's gateway about each whole postcode, and names its place.
+- With `gps`, puts the postcode of the user's location in the input, or only the part that the accuracy supports.
+- Works with the keyboard alone and with screen readers, and meets WCAG 2.2 AA on a light page. A dark page needs the colour tokens (see "Change the words and the look").
+- Stores nothing, sets no cookie and sends no telemetry.
+- Is one file of about 10 kB, minified and brotlied, with `@gatepost/core` and `@gatepost/client` inside.
+
 ## Requirements
 
 | Requirement   | Version                                                    |
@@ -144,15 +164,15 @@ The package exports `SPEC_VERSION`, the version of the Gatepost spec that it imp
 
 ## Docs
 
-The API report is in [`etc/field.api.md`](https://github.com/gatepost-dev/js/blob/main/packages/field/etc/field.api.md). [`field.md`](https://github.com/gatepost-dev/spec/blob/main/field.md) in the spec repo defines the settings, the events, the states and the rules of the field. React apps can use [`@gatepost/react`](https://github.com/gatepost-dev/js/tree/main/packages/react).
+The [docs site](https://gatepost-dev.github.io/docs/) and the [playground](https://gatepost-dev.github.io/docs/playground/) lead to the rest of Gatepost. The API report is in [`etc/field.api.md`](https://github.com/gatepost-dev/js/blob/main/packages/field/etc/field.api.md). [`field.md`](https://github.com/gatepost-dev/spec/blob/main/field.md) in the spec repo defines the settings, the events, the states and the rules of the field. React apps can use [`@gatepost/react`](https://github.com/gatepost-dev/js/tree/main/packages/react).
 
 ## Support
 
-Ask questions and report bugs in [GitHub Issues](https://github.com/gatepost-dev/js/issues). Report security problems privately, as [`SECURITY.md`](https://github.com/gatepost-dev/.github/blob/main/SECURITY.md) describes.
+Ask questions in [GitHub Discussions](https://github.com/gatepost-dev/js/discussions). Report bugs in [GitHub Issues](https://github.com/gatepost-dev/js/issues). Report security problems through the [private reporting form](https://github.com/gatepost-dev/js/security/advisories/new).
 
-## Contributing
+## Develop
 
-Read [`CONTRIBUTING.md`](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request. `pnpm check` runs the browser tests, so ports 3000 and 4010 must be free.
+Read [`docs/develop.md`](https://github.com/gatepost-dev/js/blob/main/docs/develop.md) and the [contributing guide](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request.
 
 ## Licence
 
