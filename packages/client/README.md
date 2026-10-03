@@ -76,7 +76,7 @@ Gatepost has seen only level 1 responses from the gateway. The fields of levels 
 
 ### Handle errors
 
-Each call raises a `PostcodeError` when it cannot give a result. Its `code` is one of `invalid_input`, `unauthorized`, `insufficient_credits`, `origin_not_allowed`, `forbidden`, `rate_limited`, `server_error`, `network_error` and `timeout`. `status` holds the HTTP status, and `apiCode` holds the gateway's own error code.
+Each call raises a `PostcodeError` when it cannot give a result. Its `code` is one of `invalid_input`, `unauthorized`, `insufficient_credits`, `origin_not_allowed`, `forbidden`, `rate_limited`, `server_error`, `unexpected_response`, `network_error` and `timeout`. `unexpected_response` means that the gateway answered 200 with a body that the client cannot read. `status` holds the HTTP status, and `apiCode` holds the gateway's own error code.
 
 ```ts
 import { PostcodeClient, PostcodeError } from '@gatepost/client';
