@@ -11,6 +11,7 @@ export interface Mounted {
   readonly input: HTMLInputElement;
   readonly label: HTMLLabelElement;
   readonly suggestion: HTMLButtonElement;
+  readonly location: HTMLButtonElement;
   /** The text of the live region, as a screen reader reads it. */
   readonly message: () => string;
   /** The details of each `gatepost-change` so far. */
@@ -55,6 +56,7 @@ export function mount(html: string): Mounted {
     input: part(field, '#input', HTMLInputElement),
     label: part(field, 'label', HTMLLabelElement),
     suggestion: part(field, '#suggestion', HTMLButtonElement),
+    location: part(field, '#location', HTMLButtonElement),
     message: () => message.innerText.replace(/\s+/g, ' ').trim(),
     changes,
   };

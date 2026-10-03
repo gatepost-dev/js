@@ -16,10 +16,11 @@ export interface View {
   readonly note: HTMLElement;
   readonly didYouMean: HTMLElement;
   readonly suggestion: HTMLButtonElement;
+  readonly location: HTMLButtonElement;
 }
 
-// The DOM order is the visual order and the tab order. The live region holds the two messages,
-// and not the button.
+// The DOM order is the visual order and the tab order: the input, the suggestion button, then
+// the location button. The live region holds the two messages, and not the buttons.
 const TEMPLATE = `
 <div class="field" part="field" data-state="idle">
   <label for="input" part="label"></label>
@@ -32,6 +33,7 @@ const TEMPLATE = `
     <p id="did-you-mean" hidden></p>
   </div>
   <button id="suggestion" class="link" type="button" part="button" hidden></button>
+  <button id="location" class="link" type="button" part="button" hidden></button>
 </div>`;
 
 let sheet: CSSStyleSheet | undefined;
@@ -67,6 +69,7 @@ export function buildView(root: ShadowRoot): View {
     note: find(root, '#note', HTMLParagraphElement),
     didYouMean: find(root, '#did-you-mean', HTMLParagraphElement),
     suggestion: find(root, '#suggestion', HTMLButtonElement),
+    location: find(root, '#location', HTMLButtonElement),
   };
 }
 
@@ -85,6 +88,7 @@ export interface Display {
   readonly note: string;
   readonly didYouMean: string | null;
   readonly useSuggestion: string;
+  readonly useLocation: string | null;
 }
 
 // A write of the same text still replaces the text node, and a screen reader can read a live
@@ -115,4 +119,6 @@ export function renderView(view: View, display: Display): void {
   setText(view.didYouMean, display.didYouMean ?? '');
   view.suggestion.hidden = display.didYouMean === null;
   setText(view.suggestion, display.useSuggestion);
+  view.location.hidden = display.useLocation === null;
+  setText(view.location, display.useLocation ?? '');
 }

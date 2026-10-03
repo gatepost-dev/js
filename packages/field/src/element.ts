@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { PostcodeClient, PostcodeError } from '@gatepost/client';
 import type { Postcode } from '@gatepost/core';
+import { findFix } from './location.js';
 import { fill } from './messages.js';
 import { readText, type Reading } from './reading.js';
 import { ENGLISH, type Messages } from './spec-messages.js';
@@ -168,6 +169,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     'api-key',
     'base-url',
     'confirm',
+    'gps',
     'legacy',
   ];
 
@@ -193,7 +195,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     super();
     this.#internals = this.attachInternals();
     this.#view = buildView(this.attachShadow({ mode: 'open', delegatesFocus: true }));
-    const { input, suggestion } = this.#view;
+    const { input, suggestion, location } = this.#view;
     input.addEventListener('input', (event) => {
       const pasted = event instanceof InputEvent && event.inputType === 'insertFromPaste';
       this.#update(pasted ? 'pasted' : 'typed', null);
@@ -211,6 +213,9 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     });
     suggestion.addEventListener('click', () => {
       this.#useSuggestion();
+    });
+    location.addEventListener('click', () => {
+      void this.#locate();
     });
     this.addEventListener('invalid', () => {
       this.#errorsShown = true;
@@ -339,7 +344,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
    * @param disabled - True when the field or its fieldset is disabled.
    */
   formDisabledCallback(disabled: boolean): void {
-    for (const control of [this.#view.input, this.#view.suggestion]) {
+    for (const control of [this.#view.input, this.#view.suggestion, this.#view.location]) {
       control.disabled = disabled;
     }
   }
@@ -429,11 +434,10 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   }
 
   // A lookup that matches the one in progress or the remembered one stays. Any other change
-  // cancels the lookup in progress and forgets its outcome, except a location outcome, which
-  // lasts until the text changes.
+  // cancels the lookup in progress and forgets its outcome, except a location request and its
+  // outcome, which last until the text changes. A location request in progress starts no lookup.
   #startLookup(reading: Reading, textChanged: boolean): void {
-    const state = this.#outcome?.state;
-    if ((state === 'coarse' || state === 'no-location') && !textChanged) {
+    if (!textChanged && this.#locationOutcome()) {
       return;
     }
     const wanted = this.#wanted(reading);
@@ -448,6 +452,12 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     if (wanted !== null && reading.kind === 'postcode') {
       void this.#lookUp(reading.postcode, wanted);
     }
+  }
+
+  // True while a location request is in progress, and after it, until the text changes.
+  #locationOutcome(): boolean {
+    const state = this.#outcome?.state;
+    return state === 'locating' || state === 'coarse' || state === 'no-location';
   }
 
   #setValidity(): void {
@@ -544,6 +554,58 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     }
   }
 
+  // A press of the button cancels the lookup in progress and forgets the remembered lookup, so
+  // the postcode of the location always gets a lookup.
+  async #locate(): Promise<void> {
+    if (this.#client === null) {
+      return;
+    }
+    const work = this.#startWork({ state: 'locating', note: { key: 'locating' } });
+    this.#asked = null;
+    this.#remembered = null;
+    this.#render();
+    try {
+      const fix = await findFix(() => this.#client, work.signal);
+      if (work.signal.aborted) {
+        return;
+      }
+      if (fix.kind === 'postcode') {
+        this.#placePostcode(fix.postcode, fix.accuracyM);
+      } else if (fix.kind === 'failed') {
+        this.#finish({ state: 'no-location', note: { key: fix.key } });
+        if (fix.code !== null) {
+          this.#raise('gatepost-error', { code: fix.code });
+        }
+      } else if (this.#keyRefused) {
+        // The key became a secret key while the field waited for the position.
+        this.#finish({ state: 'error', note: { key: 'secret_key' } });
+        this.#raise('gatepost-error', { code: 'secret_key' });
+      } else {
+        // The key is gone: nothing is sent, and the field shows the state that its text gives.
+        this.#endRequest();
+        this.#render();
+      }
+    } catch (error) {
+      if (!work.signal.aborted) {
+        throw error;
+      }
+    }
+  }
+
+  // The request ends before the update, so the update can start the lookup of a whole postcode.
+  // A partial postcode ends in a space, so the user can type the next segment at once.
+  #placePostcode(postcode: Postcode, accuracyM: number): void {
+    const { input } = this.#view;
+    const whole = postcode.precision === 'unit';
+    this.#endRequest();
+    input.value = whole ? postcode.display : `${postcode.display} `;
+    this.#update('gps', accuracyM);
+    if (!whole) {
+      this.#finish({ state: 'coarse', note: { key: 'gps_coarse' } });
+      input.focus();
+    }
+  }
+
   #startWork(outcome: Outcome): AbortController {
     this.#work?.abort();
     const work = new AbortController();
@@ -552,9 +614,14 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     return work;
   }
 
-  #finish(outcome: Outcome): void {
+  #endRequest(): void {
     this.#work = null;
     this.#asked = null;
+    this.#outcome = null;
+  }
+
+  #finish(outcome: Outcome): void {
+    this.#endRequest();
     this.#outcome = outcome;
     this.#render();
   }
@@ -591,6 +658,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   #render(): void {
     const state = this.#state();
     const rejected = state === 'legacy' && this.#legacy === 'reject';
+    const showLocation = this.hasAttribute('gps') && this.#client !== null;
     renderView(this.#view, {
       state,
       invalid: state === 'invalid' || rejected,
@@ -601,6 +669,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
       note: this.#noteText(state),
       didYouMean: this.#suggestionText(state),
       useSuggestion: this.#messages.use_suggestion,
+      useLocation: showLocation ? this.#messages.use_location : null,
     });
   }
 }
