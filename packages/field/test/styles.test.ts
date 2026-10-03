@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { mount } from './field.js';
 
 // The relative luminance and the contrast ratio of WCAG 2.2, for colours written #rrggbb.
@@ -47,7 +48,16 @@ describe('the input', () => {
   it('keeps a target of at least 24 by 24 pixels, and a text size of 16 pixels or more', () => {
     const { input } = mount('<gatepost-postcode-field></gatepost-postcode-field>');
     const box = input.getBoundingClientRect();
+    expect(box.width).toBeGreaterThanOrEqual(24);
     expect(box.height).toBeGreaterThanOrEqual(24);
     expect(Number.parseFloat(getComputedStyle(input).fontSize)).toBeGreaterThanOrEqual(16);
+  });
+
+  it('keeps the same target size for the suggestion button', async () => {
+    const { input, suggestion } = mount('<gatepost-postcode-field></gatepost-postcode-field>');
+    await userEvent.type(input, 'FCO1Z99ZZ01');
+    const box = suggestion.getBoundingClientRect();
+    expect(box.width).toBeGreaterThanOrEqual(24);
+    expect(box.height).toBeGreaterThanOrEqual(24);
   });
 });

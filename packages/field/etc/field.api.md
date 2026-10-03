@@ -23,29 +23,32 @@ export type MessageKey = "label" | "hint" | "empty" | "bad_character" | "bad_len
 // @public
 export type Messages = Readonly<Record<MessageKey, string>>;
 
-// Warning: (ae-forgotten-export) The symbol "ElementBase" needs to be exported by the entry point index.d.ts
-//
 // @public
-export class PostcodeFieldElement extends ElementBase {
-    constructor();
+export interface PostcodeFieldElement extends HTMLElement {
     attributeChangedCallback(name: string): void;
     checkValidity(): boolean;
     connectedCallback(): void;
-    get form(): HTMLFormElement | null;
-    static readonly formAssociated = true;
+    readonly form: HTMLFormElement | null;
     formDisabledCallback(disabled: boolean): void;
     formResetCallback(): void;
     formStateRestoreCallback(state: unknown): void;
     get messages(): Messages;
     set messages(messages: Partial<Messages>);
-    static readonly observedAttributes: readonly string[];
     reportValidity(): boolean;
-    get validationMessage(): string;
-    get validity(): ValidityState;
+    readonly validationMessage: string;
+    readonly validity: ValidityState;
     get value(): string;
     set value(text: string);
-    get willValidate(): boolean;
+    readonly willValidate: boolean;
 }
+
+// @public
+export const PostcodeFieldElement: {
+    readonly prototype: PostcodeFieldElement;
+    new (): PostcodeFieldElement;
+    readonly formAssociated: true;
+    readonly observedAttributes: readonly string[];
+};
 
 // @public
 export const SPEC_VERSION = "0.3.0";

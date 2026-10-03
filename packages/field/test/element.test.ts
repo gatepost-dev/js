@@ -10,6 +10,18 @@ function formValue(form: HTMLFormElement): FormDataEntryValue | null {
   return new FormData(form).get('postcode');
 }
 
+// Copies the text from a plain input and pastes it into the input of the field, as a user does.
+async function pasteInto(input: HTMLInputElement, text: string): Promise<void> {
+  const source = document.createElement('input');
+  source.value = text;
+  document.body.append(source);
+  source.select();
+  await userEvent.copy();
+  source.remove();
+  input.focus();
+  await userEvent.paste();
+}
+
 describe('the field in a plain form', () => {
   it('names its input with the label, and describes it with the hint', () => {
     const { input, label } = mount(FIELD);
@@ -80,20 +92,27 @@ describe('the field in a plain form', () => {
     expect(field.shadowRoot?.activeElement).toBe(input);
   });
 
-  it('takes a pasted postcode with en dashes, no-break spaces and full-width letters', () => {
+  it('takes a pasted postcode with en dashes, no-break spaces and full-width letters', async () => {
     const dash = String.fromCodePoint(0x2013);
     const space = String.fromCodePoint(0xa0);
     // U+FF26 and U+FF23 are the full-width letters F and C.
     const wide = String.fromCodePoint(0xff26, 0xff23);
-    const { field, input } = mount(FIELD);
+    // The same text with a non-breaking hyphen (U+2011) and full-width digits and letters.
+    const mixed = String.fromCodePoint(
+      ...[0xff26, 0xff23, 0x2011, 0xff10, 0xff11, 0x20, 0xff3a, 0xff19, 0xff19, 0xa0],
+      ...[0xff3a, 0xff3a, 0x2013, 0xff10, 0xff11],
+    );
+    const { form, input, changes } = mount(FIELD);
     for (const text of [
       `FC${dash}01${dash}Z99${dash}ZZ${dash}01`,
       `FC${space}01 Z99 ZZ 01`,
       `${wide}01Z99ZZ01`,
+      mixed,
     ]) {
-      input.value = text;
-      input.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste' }));
-      expect(field.value).toBe('FC-01-Z99-ZZ-01');
+      await userEvent.clear(input);
+      await pasteInto(input, text);
+      expect(formValue(form)).toBe('FC-01-Z99-ZZ-01');
+      expect(changes.at(-1)?.source).toBe('pasted');
     }
   });
 
@@ -105,25 +124,106 @@ describe('the field in a plain form', () => {
         '</gatepost-postcode-field>',
     );
     const [billing, delivery] = Array.from(form.querySelectorAll('gatepost-postcode-field'));
-    await userEvent.type(billing!.shadowRoot!.querySelector('input')!, 'FC01Z99ZZ01');
-    await userEvent.type(delivery!.shadowRoot!.querySelector('input')!, 'FC01Z99ZZ02');
+    const parts = (field: Element | undefined) => ({
+      input: field!.shadowRoot!.querySelector('input')!,
+      label: field!.shadowRoot!.querySelector('label')!.textContent,
+      message: field!.shadowRoot!.querySelector<HTMLElement>('#message')!.innerText.trim(),
+    });
+    await userEvent.type(parts(billing).input, 'FC01Z99ZZ01');
+    await userEvent.type(parts(delivery).input, 'FC01');
+    await userEvent.tab();
     expect(new FormData(form).get('billing')).toBe('FC-01-Z99-ZZ-01');
-    expect(new FormData(form).get('delivery')).toBe('FC-01-Z99-ZZ-02');
-    expect(delivery!.shadowRoot!.querySelector('label')?.textContent).toBe('Delivery postcode');
+    expect(new FormData(form).get('delivery')).toBe('FC01');
+    expect([parts(billing).label, parts(delivery).label]).toEqual([
+      'Billing postcode',
+      'Delivery postcode',
+    ]);
+    expect(parts(billing).message).toBe('This postcode is in Federal Capital Territory.');
+    expect(parts(delivery).message).toBe('A postcode has 11 letters and numbers. You entered 4.');
+    expect(parts(billing).input.getAttribute('aria-invalid')).toBe('false');
+    expect(parts(delivery).input.getAttribute('aria-invalid')).toBe('true');
   });
 
   it('raises gatepost-change with the source of each change of the form value', async () => {
     const { input, changes } = mount(FIELD);
     await userEvent.type(input, 'F');
-    input.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertFromPaste' }));
     input.value = 'FC-01-Z99-ZZ-01';
     input.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste' }));
+    // An autofill sends an input event with no event before it, so the paste must not linger.
+    input.value = 'FC-01-Z99-ZZ-02';
+    input.dispatchEvent(new InputEvent('input', { inputType: 'insertReplacementText' }));
     expect(changes.map((change) => [change.value, change.source])).toEqual([
       ['F', 'typed'],
       ['FC-01-Z99-ZZ-01', 'pasted'],
+      ['FC-01-Z99-ZZ-02', 'typed'],
     ]);
-    expect(changes.at(-1)?.postcode?.display).toBe('FC 01 Z99 ZZ 01');
+    expect(changes.at(-1)?.postcode?.display).toBe('FC 01 Z99 ZZ 02');
     expect(changes.at(-1)?.accuracyM).toBeNull();
+  });
+});
+
+describe('Enter in the input', () => {
+  function watch(form: HTMLFormElement): HTMLButtonElement[] {
+    const submitters: HTMLButtonElement[] = [];
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitters.push(event.submitter as HTMLButtonElement);
+    });
+    return submitters;
+  }
+
+  async function enter(input: HTMLInputElement): Promise<void> {
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    await userEvent.keyboard('{Enter}');
+  }
+
+  it('sends the name and value of the default button, as a native input does', async () => {
+    const { form, input } = mount(
+      `${FIELD}<button type="button" name="other">No</button>` +
+        '<button name="go" value="1">Go</button><button name="stop" value="2">Stop</button>',
+    );
+    const submitters = watch(form);
+    await enter(input);
+    expect(submitters.map((button) => button.name)).toEqual(['go']);
+    expect(new FormData(form, submitters[0]).get('go')).toBe('1');
+    expect(new FormData(form, submitters[0]).has('stop')).toBe(false);
+  });
+
+  it('also finds a default button that is an input of type submit', async () => {
+    const { form, input } = mount(`${FIELD}<input type="submit" name="send" value="Send">`);
+    const submitters = watch(form);
+    await enter(input);
+    expect(new FormData(form, submitters[0]).get('send')).toBe('Send');
+  });
+
+  it('does nothing when the default button is disabled, even if a later one is not', async () => {
+    const { form, input } = mount(
+      `${FIELD}<button name="go" disabled>Go</button><button name="stop">Stop</button>`,
+    );
+    const submitters = watch(form);
+    await enter(input);
+    expect(submitters).toEqual([]);
+  });
+
+  it('submits a form with no submit button when the field is its only text field', async () => {
+    const { form, input } = mount(`${FIELD}<input type="checkbox" name="gift">`);
+    const submitters = watch(form);
+    await enter(input);
+    expect(submitters).toEqual([null]);
+  });
+
+  it('does nothing in a form with no submit button and a second text field', async () => {
+    const { form, input } = mount(`${FIELD}<input type="text" name="city">`);
+    const submitters = watch(form);
+    await enter(input);
+    expect(submitters).toEqual([]);
+  });
+
+  it('does nothing in a form with no submit button and a second postcode field', async () => {
+    const { form, field } = mount(`${FIELD}${FIELD.replace('"postcode"', '"other"')}`);
+    const submitters = watch(form);
+    await enter(field.shadowRoot!.querySelector('input')!);
+    expect(submitters).toEqual([]);
   });
 });
 
@@ -217,6 +317,74 @@ describe('the field and its form', () => {
     await userEvent.tab();
     expect(message()).toBe('A postcode has 11 letters and numbers. You entered 4.');
   });
+
+  it('shows a message that the page gives for the empty required field', async () => {
+    const { field, input, message } = mount(
+      '<gatepost-postcode-field name="postcode" required></gatepost-postcode-field>',
+    );
+    field.messages = { empty: 'Type a postcode.' };
+    expect(field.validationMessage).toBe('Type a postcode.');
+    input.focus();
+    await userEvent.tab();
+    expect(message()).toBe('Type a postcode.');
+  });
+
+  it('puts back the text that the browser saved, and keeps it over the value attribute', () => {
+    const { field, input } = mount(
+      '<gatepost-postcode-field name="postcode" value="FC-01-Z99-ZZ-02"></gatepost-postcode-field>',
+    );
+    field.formStateRestoreCallback('fc 01 z99 zz 01');
+    expect(input.value).toBe('fc 01 z99 zz 01');
+    expect(field.value).toBe('FC-01-Z99-ZZ-01');
+    field.setAttribute('value', 'FC-01-Z99-ZZ-03');
+    expect(input.value).toBe('fc 01 z99 zz 01');
+  });
+
+  it('waits again before it shows an error after a form reset', async () => {
+    const { form, input, message } = mount(FIELD);
+    await userEvent.type(input, 'FC01');
+    await userEvent.tab();
+    expect(message()).not.toBe('');
+    form.reset();
+    expect(message()).toBe('');
+    input.focus();
+    await userEvent.keyboard('F');
+    expect(message()).toBe('');
+  });
+
+  it('does not show errors when the window loses focus and the input keeps it', async () => {
+    const { input, message } = mount(FIELD);
+    await userEvent.type(input, 'FC01');
+    input.dispatchEvent(new FocusEvent('blur'));
+    expect(message()).toBe('');
+    await userEvent.tab();
+    expect(message()).toBe('A postcode has 11 letters and numbers. You entered 4.');
+  });
+
+  it('marks the input as required for assistive technology, as the field is', () => {
+    const { field, input } = mount(
+      '<gatepost-postcode-field name="postcode" required></gatepost-postcode-field>',
+    );
+    expect(input.getAttribute('aria-required')).toBe('true');
+    field.removeAttribute('required');
+    expect(input.getAttribute('aria-required')).toBe('false');
+  });
+
+  it('changes the live region only when the message changes', async () => {
+    const { field, input, message } = mount(FIELD);
+    const region = field.shadowRoot!.querySelector('#message')!;
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    expect(message()).toBe('This postcode is in Federal Capital Territory.');
+    const writes: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => writes.push(...records));
+    observer.observe(region, { childList: true, characterData: true, subtree: true });
+    await userEvent.type(input, ' ');
+    await userEvent.tab();
+    field.messages = { label: 'Your postcode' };
+    await new Promise((resolve) => setTimeout(resolve));
+    observer.disconnect();
+    expect(writes).toEqual([]);
+  });
 });
 
 describe('accessibility', () => {
@@ -231,6 +399,17 @@ describe('accessibility', () => {
     await userEvent.clear(input);
     await userEvent.type(input, 'FC01Z99ZZ01');
     await userEvent.tab();
+    await expectAccessible();
+  });
+
+  it('has no violation in the states legacy rejected and required but empty', async () => {
+    const { input } = mount(
+      '<gatepost-postcode-field legacy="reject" required></gatepost-postcode-field>',
+    );
+    input.focus();
+    await userEvent.tab();
+    await expectAccessible();
+    await userEvent.type(input, '900108');
     await expectAccessible();
   });
 

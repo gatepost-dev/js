@@ -78,12 +78,21 @@ export function buildView(root: ShadowRoot): View {
 export interface Display {
   readonly state: State;
   readonly invalid: boolean;
+  readonly required: boolean;
   readonly rejected: boolean;
   readonly label: string;
   readonly hint: string;
   readonly note: string;
   readonly didYouMean: string | null;
   readonly useSuggestion: string;
+}
+
+// A write of the same text still replaces the text node, and a screen reader can read a live
+// region again for it. So the view writes a text only when it differs.
+function setText(element: HTMLElement, text: string): void {
+  if (element.textContent !== text) {
+    element.textContent = text;
+  }
 }
 
 /**
@@ -97,12 +106,13 @@ export interface Display {
 export function renderView(view: View, display: Display): void {
   view.field.dataset['state'] = display.state;
   view.field.toggleAttribute('data-rejected', display.rejected);
-  view.label.textContent = display.label;
-  view.hint.textContent = display.hint;
+  setText(view.label, display.label);
+  setText(view.hint, display.hint);
   view.input.setAttribute('aria-invalid', String(display.invalid));
-  view.note.textContent = display.note;
+  view.input.setAttribute('aria-required', String(display.required));
+  setText(view.note, display.note);
   view.didYouMean.hidden = display.didYouMean === null;
-  view.didYouMean.textContent = display.didYouMean ?? '';
+  setText(view.didYouMean, display.didYouMean ?? '');
   view.suggestion.hidden = display.didYouMean === null;
-  view.suggestion.textContent = display.useSuggestion;
+  setText(view.suggestion, display.useSuggestion);
 }

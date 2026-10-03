@@ -19,6 +19,29 @@ const CHECKED_ATTRIBUTES = new Set(['required', 'legacy']);
 const ElementBase: typeof HTMLElement =
   typeof HTMLElement === 'undefined' ? (Object as unknown as typeof HTMLElement) : HTMLElement;
 
+// The types of the input elements that block implicit submission when a form has no submit button.
+const BLOCKING_TYPES = new Set([
+  'text',
+  'search',
+  'url',
+  'tel',
+  'email',
+  'password',
+  'date',
+  'month',
+  'week',
+  'time',
+  'datetime-local',
+  'number',
+]);
+
+function isSubmitButton(element: Element): element is HTMLButtonElement | HTMLInputElement {
+  return (
+    (element instanceof HTMLButtonElement && element.type === 'submit') ||
+    (element instanceof HTMLInputElement && (element.type === 'submit' || element.type === 'image'))
+  );
+}
+
 /**
  * The postcode field, `<gatepost-postcode-field>`. A plain HTML form submits its form value: the
  * canonical form of the postcode. It checks the format offline.
@@ -31,7 +54,77 @@ const ElementBase: typeof HTMLElement =
  * </form>
  * ```
  */
-export class PostcodeFieldElement extends ElementBase {
+export interface PostcodeFieldElement extends HTMLElement {
+  /**
+   * The form value: the canonical form, the digits of a legacy postcode, or the trimmed text. A
+   * new value goes into the input as typed text, and raises no `gatepost-change`.
+   */
+  get value(): string;
+  set value(text: string);
+
+  /**
+   * The messages that the field shows, from the English catalogue of the spec. A new object
+   * replaces messages by key, and a key that it leaves out keeps its English text.
+   */
+  get messages(): Messages;
+  set messages(messages: Partial<Messages>);
+
+  /** The form that holds the field, or null. */
+  readonly form: HTMLFormElement | null;
+
+  /** The validity of the field, as for a native input. */
+  readonly validity: ValidityState;
+
+  /** The message that the browser shows for an invalid field, or an empty text. */
+  readonly validationMessage: string;
+
+  /** True when a form checks the field before it submits. */
+  readonly willValidate: boolean;
+
+  /**
+   * Checks the field as a form does before it submits.
+   *
+   * @returns True when the field is valid. Otherwise false, after an `invalid` event.
+   */
+  checkValidity(): boolean;
+
+  /**
+   * Checks the field, and shows its error to the user when it is invalid.
+   *
+   * @returns True when the field is valid.
+   */
+  reportValidity(): boolean;
+
+  /** Reads the settings and checks the text. The browser calls it on insertion. */
+  connectedCallback(): void;
+
+  /**
+   * Applies a changed attribute. The browser calls it.
+   *
+   * @param name - The name of the attribute.
+   */
+  attributeChangedCallback(name: string): void;
+
+  /** Puts the text of the `value` attribute back. The browser calls it when the form resets. */
+  formResetCallback(): void;
+
+  /**
+   * Turns the controls off or on with the form. The browser calls it.
+   *
+   * @param disabled - True when the field or its fieldset is disabled.
+   */
+  formDisabledCallback(disabled: boolean): void;
+
+  /**
+   * Puts back the text that the user had typed, for example after the back button. The
+   * browser calls it.
+   *
+   * @param state - The text that the field saved with its form value.
+   */
+  formStateRestoreCallback(state: unknown): void;
+}
+
+class FieldElement extends ElementBase implements PostcodeFieldElement {
   /** Makes the element a form control, so a form submits its form value. */
   static readonly formAssociated = true;
 
@@ -43,7 +136,6 @@ export class PostcodeFieldElement extends ElementBase {
   #messages: Messages = ENGLISH;
   #reading: Reading = { kind: 'empty' };
   #value = '';
-  #source: ChangeSource = 'typed';
   #connected = false;
   #dirty = false;
   #errorsShown = false;
@@ -54,18 +146,19 @@ export class PostcodeFieldElement extends ElementBase {
     this.#internals = this.attachInternals();
     this.#view = buildView(this.attachShadow({ mode: 'open', delegatesFocus: true }));
     const { input, suggestion } = this.#view;
-    input.addEventListener('beforeinput', (event) => {
-      this.#source = event.inputType === 'insertFromPaste' ? 'pasted' : 'typed';
-    });
-    input.addEventListener('input', () => {
-      this.#update(this.#source, null);
+    input.addEventListener('input', (event) => {
+      const pasted = event instanceof InputEvent && event.inputType === 'insertFromPaste';
+      this.#update(pasted ? 'pasted' : 'typed', null);
     });
     input.addEventListener('blur', () => {
-      this.#leave();
+      // The input also gets a blur when the window loses focus, but it stays the active element.
+      if (this.shadowRoot?.activeElement !== input) {
+        this.#leave();
+      }
     });
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && !event.isComposing) {
-        this.#internals.form?.requestSubmit();
+        this.#submit();
       }
     });
     suggestion.addEventListener('click', () => {
@@ -196,6 +289,7 @@ export class PostcodeFieldElement extends ElementBase {
    */
   formStateRestoreCallback(state: unknown): void {
     if (typeof state === 'string') {
+      this.#dirty = true;
       this.#view.input.value = state;
       this.#refresh();
     }
@@ -256,6 +350,31 @@ export class PostcodeFieldElement extends ElementBase {
     this.#render();
   }
 
+  // A native text input submits its form on Enter by way of the default button, which is the
+  // first submit button. Without one, it submits only when it is the one field that blocks this.
+  #submit(): void {
+    const form = this.#internals.form;
+    if (form === null) {
+      return;
+    }
+    const elements = Array.from(form.elements);
+    const button = elements.find(isSubmitButton);
+    if (button !== undefined) {
+      if (!button.disabled) {
+        form.requestSubmit(button);
+      }
+      return;
+    }
+    const blocking = elements.filter(
+      (element) =>
+        element instanceof FieldElement ||
+        (element instanceof HTMLInputElement && BLOCKING_TYPES.has(element.type)),
+    );
+    if (blocking.length <= 1) {
+      form.requestSubmit();
+    }
+  }
+
   #useSuggestion(): void {
     const reading = this.#reading;
     if (reading.kind === 'error' && reading.suggestion !== null) {
@@ -301,6 +420,7 @@ export class PostcodeFieldElement extends ElementBase {
       state,
       invalid: state === 'invalid' || rejected,
       rejected,
+      required: this.hasAttribute('required'),
       label: this.getAttribute('label') ?? this.#messages.label,
       hint: this.#messages.hint,
       note: this.#noteText(state),
@@ -309,3 +429,13 @@ export class PostcodeFieldElement extends ElementBase {
     });
   }
 }
+
+/** The element `<gatepost-postcode-field>`. */
+export const PostcodeFieldElement: {
+  readonly prototype: PostcodeFieldElement;
+  new (): PostcodeFieldElement;
+  /** Makes the element a form control, so a form submits its form value. */
+  readonly formAssociated: true;
+  /** The attributes that change the field when a page sets them. */
+  readonly observedAttributes: readonly string[];
+} = FieldElement;
