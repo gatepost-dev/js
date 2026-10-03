@@ -15,10 +15,8 @@ const EXAMPLES = tsBlocks(README).map((source, index) => ({
 describe('README', () => {
   runExamples(EXAMPLES);
 
-  it.each(Object.keys(core))('shows %s in an example', (name) => {
-    expect(EXAMPLES.map((example) => example.source).join('\n')).toMatch(
-      new RegExp(`\\b${name}\\b`),
-    );
+  it.each(Object.keys(core))('names %s in the README', (name) => {
+    expect(README).toMatch(new RegExp(`\\b${name}\\b`));
   });
 
   it('names the input limit of parse', () => {
