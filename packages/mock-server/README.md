@@ -69,7 +69,7 @@ folder and names a broken file. It does not check a fixture body against the Ope
 | Requirement   | Version                                    |
 | ------------- | ------------------------------------------ |
 | Node          | 22.22.2 or later 22.x, or 24.15.0 or later |
-| Gatepost spec | 0.2.0                                      |
+| Gatepost spec | 0.3.0                                      |
 
 ## Docs
 

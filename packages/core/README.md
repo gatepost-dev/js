@@ -180,14 +180,14 @@ if (building.ok) {
 | ------------- | ----------------------------------- |
 | Node          | 22 or later, or any current browser |
 | Module format | ESM only                            |
-| Gatepost spec | 0.2.0                               |
+| Gatepost spec | 0.3.0                               |
 
 The package exports `SPEC_VERSION`, the version of the Gatepost spec that it implements.
 
 ```ts
 import { SPEC_VERSION } from '@gatepost/core';
 
-SPEC_VERSION; // '0.2.0'
+SPEC_VERSION; // '0.3.0'
 ```
 
 ## Docs

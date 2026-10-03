@@ -171,14 +171,14 @@ client.clearCache();
 | ------------- | ---------------------------------------------- |
 | Node          | 22 or later, or a current browser with `fetch` |
 | Module format | ESM only                                       |
-| Gatepost spec | 0.2.0                                          |
+| Gatepost spec | 0.3.0                                          |
 
 The package exports `SPEC_VERSION`, the version of the Gatepost spec that it implements.
 
 ```ts
 import { SPEC_VERSION } from '@gatepost/client';
 
-SPEC_VERSION; // '0.2.0'
+SPEC_VERSION; // '0.3.0'
 ```
 
 ## Docs
