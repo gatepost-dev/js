@@ -95,6 +95,7 @@ describe('the field in a plain form', () => {
   it('takes a pasted postcode with en dashes, no-break spaces and full-width letters', async () => {
     const dash = String.fromCodePoint(0x2013);
     const space = String.fromCodePoint(0xa0);
+    const minus = String.fromCodePoint(0x2212);
     // U+FF26 and U+FF23 are the full-width letters F and C.
     const wide = String.fromCodePoint(0xff26, 0xff23);
     // The same text with a non-breaking hyphen (U+2011) and full-width digits and letters.
@@ -105,6 +106,7 @@ describe('the field in a plain form', () => {
     const { form, input, changes } = mount(FIELD);
     for (const text of [
       `FC${dash}01${dash}Z99${dash}ZZ${dash}01`,
+      `FC${minus}01${minus}Z99${minus}ZZ${minus}01`,
       `FC${space}01 Z99 ZZ 01`,
       `${wide}01Z99ZZ01`,
       mixed,
@@ -199,6 +201,15 @@ describe('Enter in the input', () => {
   it('does nothing when the default button is disabled, even if a later one is not', async () => {
     const { form, input } = mount(
       `${FIELD}<button name="go" disabled>Go</button><button name="stop">Stop</button>`,
+    );
+    const submitters = watch(form);
+    await enter(input);
+    expect(submitters).toEqual([]);
+  });
+
+  it('does nothing when the default button sits in a disabled fieldset', async () => {
+    const { form, input } = mount(
+      `${FIELD}<fieldset disabled><button name="go">Go</button></fieldset>`,
     );
     const submitters = watch(form);
     await enter(input);

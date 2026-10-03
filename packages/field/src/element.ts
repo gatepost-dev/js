@@ -484,7 +484,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     const elements = Array.from(form.elements);
     const button = elements.find(isSubmitButton);
     if (button !== undefined) {
-      if (!button.disabled) {
+      if (!button.matches(':disabled')) {
         form.requestSubmit(button);
       }
       return;
