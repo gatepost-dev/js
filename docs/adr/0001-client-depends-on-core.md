@@ -1,6 +1,6 @@
 # 1. The client depends on the core
 
-Date: 9 Oct 2026
+Date: 3 Oct 2026
 
 ## Context
 
