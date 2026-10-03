@@ -114,7 +114,9 @@ The `messages` property replaces messages by key, and the field keeps the Englis
 
 You can set the properties `messages` and `value` before the browser defines the element, for example when a framework renders the field before the script loads. The field takes them when it starts.
 
-The tokens are `--gatepost-text`, `--gatepost-muted`, `--gatepost-background`, `--gatepost-border`, `--gatepost-accent`, `--gatepost-error`, `--gatepost-warning`, `--gatepost-radius` and `--gatepost-font`. The defaults are for a light page: the label, the hint and the message take the page's own background, and the defaults meet a contrast of 4.5:1 on white. On a dark page, set all five colour tokens, as below, and check your own colours on your page's background. On a dark page, add these rules to your style sheet:
+The tokens are `--gatepost-text`, `--gatepost-muted`, `--gatepost-background`, `--gatepost-border`, `--gatepost-accent`, `--gatepost-error`, `--gatepost-warning`, `--gatepost-radius` and `--gatepost-font`. The defaults are for a light page: the label, the hint and the message take the page's own background, and the defaults meet a contrast of 4.5:1 on white. On a dark page, set the seven colour tokens, as below, and check your own colours on your page's background.
+
+On a dark page, add these rules to your style sheet:
 
 ```css
 gatepost-postcode-field {

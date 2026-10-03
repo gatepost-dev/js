@@ -481,4 +481,10 @@ describe('accessibility', () => {
     expect(label.textContent).toBe('Postcode');
     expect(message()).toBe('This postcode is in Federal Capital Territory.');
   });
+
+  it.each([null, undefined])('takes %s as no messages', (none) => {
+    const { field, label } = mount('<gatepost-postcode-field></gatepost-postcode-field>');
+    field.messages = none as never;
+    expect(label.textContent).toBe('Postcode');
+  });
 });

@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 The Gatepost authors
 // SPDX-License-Identifier: Apache-2.0
+import axe from 'axe-core';
 import { describe, expect, it, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
-import { expectAccessible, mount } from './field.js';
+import { commands, userEvent } from 'vitest/browser';
+import { mount } from './field.js';
 
 // The relative luminance and the contrast ratio of WCAG 2.2, for colours written #rrggbb.
 function luminance(hex: string): number {
@@ -44,32 +45,53 @@ describe('the theme tokens', () => {
   });
 });
 
-// The dark example of the README. The defaults are for a light page, so a dark page sets all five
-// colour tokens.
-const DARK = [
-  '--gatepost-text: #f2f5f4',
-  '--gatepost-muted: #b9c2be',
-  '--gatepost-background: #1c2321',
-  '--gatepost-border: #8f9b96',
-  '--gatepost-accent: #5ad1bf',
-  '--gatepost-error: #ff9d94',
-  '--gatepost-warning: #ffb95c',
-].join('; ');
+// The rules of the README's dark example, as the text of a style attribute. Reading the README
+// keeps the example and the test together.
+async function readmeDarkTokens(): Promise<string> {
+  const readme = await commands.readFile('README.md');
+  const block = /```css\n([\s\S]*?)```/.exec(readme)?.[1];
+  const body = block === undefined ? undefined : /\{([\s\S]*)\}/.exec(block)?.[1];
+  if (body === undefined) {
+    throw new Error('The README holds no css example.');
+  }
+  return body.replaceAll(/\s+/g, ' ').trim();
+}
+
+// The ids of the axe rules that the field breaks, in each state with a colour of its own: quiet,
+// valid (accent), a legacy postcode (warning), and a mistake with a suggestion (error).
+async function violationsOnDarkPage(style: string): Promise<string[]> {
+  document.body.style.background = '#111111';
+  try {
+    const { input, suggestion } = mount(
+      `<gatepost-postcode-field style="${style}"></gatepost-postcode-field>`,
+    );
+    const ids = new Set<string>();
+    const collect = async (): Promise<void> => {
+      const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+      const results = await axe.run(document.body, { runOnly: { type: 'tag', values: tags } });
+      results.violations.forEach((violation) => ids.add(violation.id));
+    };
+    await collect();
+    for (const text of ['FC01Z99ZZ01', '123456', 'FCO1Z99ZZ01']) {
+      await userEvent.clear(input);
+      await userEvent.type(input, text);
+      await userEvent.tab();
+      await collect();
+    }
+    expect(suggestion.hidden).toBe(false);
+    return [...ids];
+  } finally {
+    document.body.style.background = '';
+  }
+}
 
 describe('a dark page', () => {
-  it('passes axe with the dark tokens, in a quiet state and with an error', async () => {
-    document.body.style.background = '#111111';
-    try {
-      const { input } = mount(
-        `<gatepost-postcode-field style="${DARK}"></gatepost-postcode-field>`,
-      );
-      await expectAccessible();
-      await userEvent.type(input, 'FC01Z99ZZ0');
-      await userEvent.tab();
-      await expectAccessible();
-    } finally {
-      document.body.style.background = '';
-    }
+  it('passes axe with the tokens of the README, in each coloured state', async () => {
+    expect(await violationsOnDarkPage(await readmeDarkTokens())).toEqual([]);
+  });
+
+  it('fails the colour contrast with no tokens, so the test above can fail', async () => {
+    expect(await violationsOnDarkPage('')).toContain('color-contrast');
   });
 });
 

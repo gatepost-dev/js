@@ -230,7 +230,9 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
 
   set messages(messages: Partial<Messages>) {
     // An entry that is not text, such as undefined from a missing key, keeps its English text.
-    const texts = Object.entries(messages).filter(([, text]) => typeof text === 'string');
+    // Plain JavaScript can pass null or undefined, which count as no messages.
+    const given = messages as Partial<Messages> | null | undefined;
+    const texts = Object.entries(given ?? {}).filter(([, text]) => typeof text === 'string');
     this.#messages = { ...ENGLISH, ...Object.fromEntries(texts) };
     this.#setValidity();
     this.#render();
