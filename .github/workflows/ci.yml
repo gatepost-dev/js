@@ -99,3 +99,29 @@ jobs:
           image=ghcr.io/gitleaks/gitleaks # v8.30.1
           digest=sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
           docker run --rm -v "$PWD:/repo" "$image@$digest" git /repo
+
+  # The job builds the image of the mock server and calls it once. It never pushes the image.
+  # mock-release.yml publishes it.
+  mock-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - run: docker build --file packages/mock-server/Dockerfile --tag postcode-mock:ci .
+      - name: Start the image and look up the synthetic unit
+        run: |
+          # The key comes from the key table that the mock server reads, so no key is in this file.
+          key="$(jq --raw-output '.keys[] | select(.lookupLevel == 1 and .kind == "secret"
+            and .lookupScope and .credits and (.rateLimited | not)) | .key' \
+            spec/fixtures/keys.json | head --lines=1)"
+          docker run --detach --name mock --publish 4010:4010 postcode-mock:ci
+          curl --silent --show-error --fail --retry 10 --retry-connrefused --retry-delay 1 \
+            http://localhost:4010/healthz
+          curl --silent --show-error --fail-with-body --header "X-API-Key: $key" \
+            'http://localhost:4010/v1/lookup?code=FC-01-Z99-ZZ-01' | tee "$RUNNER_TEMP/lookup.json"
+          grep --quiet '"valid":true' "$RUNNER_TEMP/lookup.json"
+      - if: always()
+        run: docker logs mock

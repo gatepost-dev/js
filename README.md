@@ -9,9 +9,10 @@ TypeScript packages for Nigeria's National Digital Postcode.
 
 > Unofficial. Not made or endorsed by NIPOST.
 
-| Package                           | What it does                               |
-| --------------------------------- | ------------------------------------------ |
-| [`@gatepost/core`](packages/core) | Parse, check and format postcodes offline. |
+| Package                                         | What it does                                        |
+| ----------------------------------------------- | --------------------------------------------------- |
+| [`@gatepost/core`](packages/core)               | Parse, check and format postcodes offline.          |
+| [`@gatepost/mock-server`](packages/mock-server) | Mock NIPOST's gateway for client tests. Not on npm. |
 
 ## Develop
 
