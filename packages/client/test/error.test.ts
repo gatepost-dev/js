@@ -72,7 +72,7 @@ describe('PostcodeError', () => {
 describe('clientError', () => {
   it('adds the advice for a failure with no response, and keeps its cause', () => {
     const cause = new TypeError('fetch failed');
-    const error = clientError('network_error', '', cause);
+    const error = clientError('network_error', '', { cause });
     expect(error.message).toBe(
       'The request did not reach the gateway. Check the network and the baseUrl.',
     );
@@ -87,7 +87,7 @@ describe('clientError', () => {
     const error = clientError('unexpected_response', 'The body has no data field.');
     expect(error.code).toBe('unexpected_response');
     expect(error.message).toBe(
-      'The gateway sent a reply that this client cannot read. Try again, or update the client. ' +
+      'The gateway sent a reply that the client cannot read. Try again, or update it. ' +
         'The body has no data field.',
     );
   });

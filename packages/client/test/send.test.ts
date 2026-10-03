@@ -336,6 +336,26 @@ describe('Retry-After', () => {
   });
 });
 
+describe('retryAfterMs of an error', () => {
+  const asking = (status: number): Answer => ({
+    status,
+    body: {},
+    headers: { 'Retry-After': '5' },
+  });
+
+  it.each([429, 502, 503, 504])('holds the wait of a %i', async (status) => {
+    const { settings } = settingsWith({ maxRetries: 0 }, asking(status));
+    const error = reasonOf(await settle(sendLookup(settings), 0)) as PostcodeError;
+    expect(error.retryAfterMs).toBe(5000);
+  });
+
+  it.each([400, 401, 402, 403, 404, 500, 501])('holds no wait for a %i', async (status) => {
+    const { settings } = settingsWith({ maxRetries: 0 }, asking(status));
+    const error = reasonOf(await settle(sendLookup(settings), 0)) as PostcodeError;
+    expect([error.status, error.retryAfterMs]).toEqual([status, null]);
+  });
+});
+
 describe('a transport that fails with its own abort error', () => {
   it('still gives a timeout, and does not retry it for autocomplete', async () => {
     const attempts = vi.fn();

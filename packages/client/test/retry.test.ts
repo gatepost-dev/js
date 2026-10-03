@@ -13,7 +13,7 @@ afterEach(() => {
 describe('retryAfterMs', () => {
   it.each([
     ['1', 1000],
-    [' 120 ', 120_000],
+    ['120', 120_000],
     ['0', 0],
     ['Wed, 14 Oct 2026 09:00:05 GMT', 5000],
     ['Wed, 14 Oct 2026 09:00:00 GMT', 0],
@@ -21,12 +21,39 @@ describe('retryAfterMs', () => {
     expect(retryAfterMs(header, NOW)).toBe(waitMs);
   });
 
-  it.each([null, '', '1.5', '-1', 'soon', 'Wed, 14 Oct 2026 08:59:59 GMT'])(
-    'gives null for %j',
-    (header) => {
-      expect(retryAfterMs(header, NOW)).toBeNull();
-    },
-  );
+  // The three HTTP-date forms of RFC 9110. The asctime form has no zone, and it means UTC.
+  it.each([
+    ['Wed, 14 Oct 2026 09:00:05 GMT', 5000],
+    ['Wednesday, 14-Oct-26 09:00:05 GMT', 5000],
+    ['Wed Oct 14 09:00:05 2026', 5000],
+  ])('reads the date form %j', (header, waitMs) => {
+    expect(retryAfterMs(header, NOW)).toBe(waitMs);
+  });
+
+  it('pads the day of the asctime form', () => {
+    const now = Date.parse('2026-11-03T09:00:00Z');
+    expect(retryAfterMs('Tue Nov  3 09:00:05 2026', now)).toBe(5000);
+  });
+
+  it.each([
+    null,
+    '',
+    '1.5',
+    '-1',
+    'soon',
+    'soon 2027',
+    '2999-01-01',
+    '2999-01-01T00:00:00Z',
+    'Wed, 14 Oct 2026 08:59:59 GMT',
+    'Wed, 14 Oct 2026 09:00:05 +0000',
+    'Wed, 14 Oct 2026 09:00:05',
+    'Wed Oct 14 09:00:05 2026 GMT',
+    'Wed, 14 oct 2026 09:00:05 GMT',
+    'Sat, 31 Oct 2026 09:60:05 GMT',
+    'Wed, 14 Oct 2026 09:00:05 GMT and more',
+  ])('gives null for %j', (header) => {
+    expect(retryAfterMs(header, NOW)).toBeNull();
+  });
 });
 
 describe('retryWaitMs', () => {

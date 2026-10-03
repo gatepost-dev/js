@@ -4,7 +4,7 @@ import { clientError, errorForResponse, PostcodeError } from './error.js';
 import type { Queue } from './queue.js';
 import type { GatewayRequest } from './requests.js';
 import { apiCodeOf, dataOf } from './responses.js';
-import { FIRST_WAIT_MS, JITTER_MS, retryAfterMs, retryWaitMs } from './retry.js';
+import { FIRST_WAIT_MS, JITTER_MS, retryAfterMs, retryWaitMs, WAIT_STATUSES } from './retry.js';
 
 /**
  * What every request of one client shares.
@@ -64,7 +64,9 @@ async function attempt(settings: SendSettings, url: string, signal: AbortSignal)
     throw errorForResponse({
       status: response.status,
       apiCode: apiCodeOf(body),
-      retryAfterMs: retryAfterMs(header, Date.now()),
+      retryAfterMs: WAIT_STATUSES.includes(response.status)
+        ? retryAfterMs(header, Date.now())
+        : null,
     });
   } catch (error: unknown) {
     throw failureOf(error, controller.signal);
@@ -83,7 +85,7 @@ function failureOf(error: unknown, signal: AbortSignal): unknown {
   if (signal.aborted) {
     return signal.reason;
   }
-  return clientError('network_error', '', error);
+  return clientError('network_error', '', { cause: error });
 }
 
 // A timer can fire up to a millisecond early on a finer clock. The client never waits less than

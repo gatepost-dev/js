@@ -88,15 +88,15 @@ function codeFor({ status, apiCode }: FailedResponse): PostcodeErrorCode {
 }
 
 const ADVICE: Readonly<Record<PostcodeErrorCode, string>> = {
-  invalid_input: 'The gateway refused the request as invalid. Check the arguments of the call.',
+  invalid_input: 'The gateway refused the request. Check the arguments.',
   unauthorized: 'The gateway refused the API key. Check the apiKey option.',
-  insufficient_credits: 'The account has no credits for this call. Add credits, or use level 1.',
+  insufficient_credits: 'The account has no credits. Add credits, or use level 1.',
   origin_not_allowed: "The gateway refused this page's origin. Add it to the publishable key.",
   forbidden: "The gateway refused the call. Check the key's scope and lookup level.",
   rate_limited: 'The gateway limits the requests of this key. Wait, then try again.',
   server_error: 'The gateway failed. Try again later.',
   unexpected_response:
-    'The gateway sent a reply that this client cannot read. Try again, or update the client.',
+    'The gateway sent a reply that the client cannot read. Try again, or update it.',
   network_error: 'The request did not reach the gateway. Check the network and the baseUrl.',
   timeout: 'The gateway sent no response in time. Try again, or raise timeoutMs.',
 };
@@ -124,15 +124,16 @@ export function errorForResponse(response: FailedResponse): PostcodeError {
  *   `server_error`.
  * @param detail - A sentence that adds to the advice, or an empty string. For `invalid_input`
  *   the advice is left out, so the detail must be a full message and not empty.
- * @param cause - The error that the platform raised, if any.
+ * @param details - The `cause` that the platform raised, or the `status` of a response that
+ *   the client could not read.
  * @returns The error.
  * @internal
  */
 export function clientError(
   code: PostcodeErrorCode,
   detail: string,
-  cause?: unknown,
+  details: Readonly<{ cause?: unknown; status?: number }> = {},
 ): PostcodeError {
   const message = code === 'invalid_input' ? detail : `${ADVICE[code]} ${detail}`.trim();
-  return new PostcodeError(code, message, { cause });
+  return new PostcodeError(code, message, details);
 }

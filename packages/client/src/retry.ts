@@ -8,11 +8,15 @@ export const FIRST_WAIT_MS = 500;
 export const JITTER_MS = 250;
 // A longer Retry-After ends the call at once, so a caller can tell a user when to try again.
 const LONGEST_RETRY_AFTER_MS = 10_000;
-const RETRIED_STATUSES: readonly number[] = [502, 503, 504];
+// The statuses that can carry a wait. A 429 is `rate_limited`, and the others are retried.
+/** @internal */
+export const WAIT_STATUSES: readonly number[] = [429, 502, 503, 504];
 const SECONDS = /^\d+$/;
-// An HTTP date names its day and month in letters. Date.parse also reads text such as 1.5 as a
-// date, so text with no letter is not one.
-const HAS_LETTER = /[A-Za-z]/;
+// The three HTTP-date forms of RFC 9110: IMF-fixdate, RFC 850 and asctime. Date.parse also reads
+// text that is no HTTP date, such as 2999-01-01, so each form needs its own pattern. The asctime
+// form has no zone and means UTC, so Date.parse gets the zone GMT for all three.
+const HTTP_DATE =
+  /^(?:\w{3}, \d\d [A-Z][a-z]{2} \d{4}|\w+day, \d\d-[A-Z][a-z]{2}-\d\d) [\d:]{8} GMT$|^\w{3} [A-Z][a-z]{2} [ \d]\d [\d:]{8} \d{4}$/; // check-tells: allow TELL-1 because one pattern cannot wrap
 
 /**
  * Reads a `Retry-After` header, which holds seconds or an HTTP date.
@@ -27,12 +31,14 @@ export function retryAfterMs(header: string | null, now: number): number | null 
   if (header === null) {
     return null;
   }
-  const text = header.trim();
-  if (SECONDS.test(text)) {
-    return Number(text) * 1000;
+  if (SECONDS.test(header)) {
+    return Number(header) * 1000;
   }
-  const date = HAS_LETTER.test(text) ? Date.parse(text) : Number.NaN;
-  return Number.isNaN(date) || date < now ? null : date - now;
+  if (!HTTP_DATE.test(header)) {
+    return null;
+  }
+  const date = Date.parse(`${header.replace(' GMT', '')} GMT`);
+  return date >= now ? date - now : null;
 }
 
 // The wait that Retry-After asked for, when the client accepts it.
@@ -60,7 +66,7 @@ export function retryWaitMs(
     return honouredMs(error);
   }
   if (error.code === 'server_error') {
-    return RETRIED_STATUSES.includes(error.status ?? 0) ? (honouredMs(error) ?? ownWaitMs) : null;
+    return WAIT_STATUSES.includes(error.status ?? 0) ? (honouredMs(error) ?? ownWaitMs) : null;
   }
   const retried = error.code === 'network_error' || (error.code === 'timeout' && timeoutRetried);
   return retried ? ownWaitMs : null;

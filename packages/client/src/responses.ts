@@ -4,7 +4,7 @@
 // Unknown fields stay unread. A known field of the wrong type raises unexpected_response, and
 // an unknown value of a field that allows one gets its fallback (API-14).
 import { parse, type Postcode, type Precision } from '@gatepost/core';
-import { clientError, PostcodeError } from './error.js';
+import { clientError } from './error.js';
 import type {
   AdministrativeAddress,
   AutocompleteResult,
@@ -43,8 +43,7 @@ function oneOf<T extends string>(allowed: readonly T[], field: unknown): T | nul
 
 // The readers see only responses with status 200, so the error carries that status.
 function unexpected(what: string): never {
-  const { message } = clientError('unexpected_response', `${what}.`);
-  throw new PostcodeError('unexpected_response', message, { status: 200 });
+  throw clientError('unexpected_response', `${what}.`, { status: 200 });
 }
 
 /**
@@ -69,7 +68,7 @@ export function apiCodeOf(body: unknown): string | null {
  */
 export function dataOf(body: unknown): unknown {
   if (!isFields(body) || body['data'] === undefined) {
-    return unexpected('the body has no data field');
+    return unexpected('the body has no data');
   }
   return body['data'];
 }
@@ -115,10 +114,10 @@ export function readLookup(
   request: Readonly<{ postcode: Postcode; level: LookupLevel }>,
 ): LookupResult {
   if (!isFields(data) || typeof data['valid'] !== 'boolean') {
-    return unexpected('the lookup has no boolean valid');
+    return unexpected('valid is not a boolean');
   }
   if (present(data, 'status') && typeof data['status'] !== 'string') {
-    return unexpected('the lookup status is not text');
+    return unexpected('status is not text');
   }
   const house = data['recent_house_address'];
   return {
@@ -138,11 +137,11 @@ function unitOf(unit: unknown): ReverseUnit | null {
     return null;
   }
   if (!isFields(unit) || !isNumber(unit['distance_m'])) {
-    return unexpected('the unit has no number in distance_m');
+    return unexpected('distance_m is not a number');
   }
   const parsed = parse(textOf(unit, 'postcode') ?? '');
   if (!parsed.ok) {
-    return unexpected('the unit has a postcode that does not parse');
+    return unexpected('the postcode does not parse');
   }
   return {
     postcode: parsed.value,
@@ -166,7 +165,7 @@ function unitOf(unit: unknown): ReverseUnit | null {
  */
 export function readReverse(data: unknown): ReverseResult {
   if (!isFields(data) || typeof data['found'] !== 'boolean') {
-    return unexpected('the reverse result has no boolean found');
+    return unexpected('found is not a boolean');
   }
   const radius = data['radius_m'];
   return {
@@ -204,12 +203,12 @@ export function readAutocomplete(data: unknown, typed: string): AutocompleteResu
   const segment = isFields(data) ? oneOf(SEGMENTS, data['segment']) : null;
   const items = isFields(data) ? data['suggestions'] : undefined;
   if (segment === null || !Array.isArray(items)) {
-    return unexpected('the segment or the suggestions list is missing');
+    return unexpected('segment or suggestions is wrong');
   }
   const suggestions = items.map((item: unknown) => {
     const code = isFields(item) ? textOf(item, 'code') : null;
     if (!isFields(item) || code === null) {
-      return unexpected('an item of the autocomplete has no text code');
+      return unexpected('a code is not text');
     }
     const postcode = suggestedPostcode(typed, code, segment);
     return { code, label: textOf(item, 'label'), postcode };
