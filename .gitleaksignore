@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 The Gatepost authors
+# SPDX-License-Identifier: Apache-2.0
+# This finding is a made-up test sentinel. No gateway issues this key. The test that held it
+# in one line now builds it at run time. History cannot change, so the fingerprint stays here.
+da87220e01e7b9c94993fc64cfe2e2c7bc2684ef:packages/client/test/key-secrecy.test.ts:generic-api-key:13

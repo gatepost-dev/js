@@ -9,8 +9,9 @@ import { PostcodeClient, type PostcodeErrorCode } from '../src/index.js';
 import { reasonOf, settle, useFakeClock } from './fake-clock.js';
 import { fakeTransport, type Answer } from './transport.js';
 
-const KEY = 'nipost_live_sentinel_8f3a1c';
-const SECRET_PART = 'sentinel_8f3a1c';
+// The sentinel is built at run time, so that no line of this file looks like a real key.
+const SECRET_PART = ['sentinel', '8f3a1c'].join('_');
+const KEY = ['nipost', 'live', SECRET_PART].join('_');
 
 useFakeClock();
 
