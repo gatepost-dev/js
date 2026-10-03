@@ -1,16 +1,33 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup-dark.svg">
-  <img src="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup.svg" alt="gatepost" height="48">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup-dark.svg">
+    <img src="https://raw.githubusercontent.com/gatepost-dev/.github/main/brand/gatepost-lockup.svg" alt="Gatepost" width="240">
+  </picture>
+</p>
 
-# @gatepost/react
+<h1 align="center">@gatepost/react</h1>
 
-The Gatepost postcode field as a React component. It renders on the server, and a plain form sends the postcode in its canonical form.
+<p align="center">The Gatepost postcode field as a React component. It renders on the server, and a plain form sends the postcode in its canonical form.</p>
+
+<p align="center">
+  <a href="https://github.com/gatepost-dev/js/actions/workflows/ci.yml"><img src="https://github.com/gatepost-dev/js/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/gatepost-dev/js/blob/main/LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat" alt="Licence: Apache-2.0"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/gatepost-dev/js"><img src="https://api.scorecard.dev/projects/github.com/gatepost-dev/js/badge" alt="OpenSSF Scorecard"></a>
+</p>
+
+<p align="center">
+  <a href="https://gatepost-dev.github.io/docs/">Docs</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://gatepost-dev.github.io/docs/playground/">Playground</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gatepost-dev/spec/blob/main/field.md">Field spec</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md">Contributing</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/gatepost-dev/js/discussions">Discussions</a>
+</p>
 
 > Unofficial. Not made or endorsed by NIPOST.
-
-[![CI](https://github.com/gatepost-dev/js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gatepost-dev/js/actions/workflows/ci.yml)
-[![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](https://github.com/gatepost-dev/js/blob/main/LICENSE)
 
 ## Install
 
@@ -18,7 +35,7 @@ The Gatepost postcode field as a React component. It renders on the server, and 
 pnpm add @gatepost/react
 ```
 
-The first alpha is not on npm yet, so this command works only after its release.
+The first alpha is not on npm yet, so this command does not work today.
 
 The package installs `@gatepost/field`, the custom element that does the work.
 
@@ -49,7 +66,7 @@ export function AddressForm(): ReactElement {
 
 A user who types `fc 01 z99 zz 01` sees `FC-01-Z99-ZZ-01`, and the form sends `postcode=FC-01-Z99-ZZ-01`.
 
-## What it does
+## Features
 
 - Renders `<gatepost-postcode-field>` with one attribute for each prop, so the HTML of a server render already holds the field's settings.
 - Calls `onChange`, `onConfirm` and `onError` with the detail of each event of the field.
@@ -84,15 +101,15 @@ The package exports `SPEC_VERSION`, the version of the Gatepost spec that it imp
 
 ## Docs
 
-The API report is in [`etc/react.api.md`](https://github.com/gatepost-dev/js/blob/main/packages/react/etc/react.api.md). [`field.md`](https://github.com/gatepost-dev/spec/blob/main/field.md) in the spec repo defines the field.
+The [docs site](https://gatepost-dev.github.io/docs/) and the [playground](https://gatepost-dev.github.io/docs/playground/) lead to the rest of Gatepost. The API report is in [`etc/react.api.md`](https://github.com/gatepost-dev/js/blob/main/packages/react/etc/react.api.md). [`field.md`](https://github.com/gatepost-dev/spec/blob/main/field.md) in the spec repo defines the field.
 
 ## Support
 
-Ask questions and report bugs in [GitHub Issues](https://github.com/gatepost-dev/js/issues). Report security problems privately, as [`SECURITY.md`](https://github.com/gatepost-dev/.github/blob/main/SECURITY.md) describes.
+Ask questions in [GitHub Discussions](https://github.com/gatepost-dev/js/discussions). Report bugs in [GitHub Issues](https://github.com/gatepost-dev/js/issues). Report security problems through the [private reporting form](https://github.com/gatepost-dev/js/security/advisories/new).
 
-## Contributing
+## Develop
 
-Read [`CONTRIBUTING.md`](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request.
+Read [`docs/develop.md`](https://github.com/gatepost-dev/js/blob/main/docs/develop.md) and the [contributing guide](https://github.com/gatepost-dev/.github/blob/main/CONTRIBUTING.md) before you open a pull request.
 
 ## Licence
 
