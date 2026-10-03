@@ -116,11 +116,10 @@ function pause(waitMs: number, signal: AbortSignal): Promise<void> {
 // The longest a call lasts from its first attempt: every attempt may use its full timeout, and
 // every retry may wait its longest own wait.
 function deadlineMs(settings: SendSettings): number {
-  let totalMs = (1 + settings.maxRetries) * settings.timeoutMs;
-  for (let retry = 1; retry <= settings.maxRetries; retry += 1) {
-    totalMs += FIRST_WAIT_MS * 2 ** (retry - 1) + JITTER_MS;
-  }
-  return totalMs;
+  const { maxRetries, timeoutMs } = settings;
+  // The waits 500 x 2^(n-1) + 250 for n = 1 to maxRetries add up to this, with no loop.
+  const waitsMs = FIRST_WAIT_MS * (2 ** maxRetries - 1) + JITTER_MS * maxRetries;
+  return (1 + maxRetries) * timeoutMs + waitsMs;
 }
 
 /**

@@ -21,6 +21,9 @@ export interface Calls<T> {
   clear(): void;
 }
 
+// A server can call with many different arguments, so a client keeps at most this many results.
+const MAX_KEPT = 1000;
+
 interface InFlight<T> {
   readonly promise: Promise<T>;
   readonly controller: AbortController;
@@ -35,14 +38,30 @@ interface InFlight<T> {
  * @internal
  */
 export function createCalls<T>(cacheTtlMs: number): Calls<T> {
+  let epoch = 0;
   const inFlight = new Map<string, InFlight<T>>();
   const kept = new Map<string, { readonly result: T; readonly until: number }>();
 
+  // The key is not in the map, because call() removes a result that has expired.
+  // Every result lives for the same time, so the oldest entries are at the front of the map.
+  const keep = (key: string, result: T): void => {
+    const now = Date.now();
+    for (const [oldKey, entry] of kept) {
+      if (entry.until > now && kept.size < MAX_KEPT) {
+        break;
+      }
+      kept.delete(oldKey);
+    }
+    kept.set(key, { result, until: now + cacheTtlMs });
+  };
+
   const start = (key: string, run: (signal: AbortSignal) => Promise<T>): InFlight<T> => {
     const controller = new AbortController();
+    const startedIn = epoch;
     const promise = run(controller.signal).then((result) => {
-      if (cacheTtlMs > 0) {
-        kept.set(key, { result, until: Date.now() + cacheTtlMs });
+      // A result of a request that started before clearCache must not come back.
+      if (cacheTtlMs > 0 && startedIn === epoch) {
+        keep(key, result);
       }
       return result;
     });
@@ -95,6 +114,7 @@ export function createCalls<T>(cacheTtlMs: number): Calls<T> {
       return await join(key, inFlight.get(key) ?? start(key, run), signal);
     },
     clear() {
+      epoch += 1;
       kept.clear();
     },
   };

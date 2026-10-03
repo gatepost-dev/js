@@ -16,6 +16,7 @@ import type {
 
 // API-8: a client sends at most 4 requests at a time.
 const PARALLEL_REQUESTS = 4;
+const AUTOCOMPLETE_TIMEOUT_MS = 15_000;
 const SECRET_KEY = /^nipost_(test|live)_/;
 
 // The numeric options and the rule for each. A value that breaks its rule is a programmer error.
@@ -60,6 +61,7 @@ function checkOptions(options: ClientOptions): void {
  */
 export class PostcodeClient {
   readonly #settings: SendSettings;
+  readonly #autocompleteSettings: SendSettings;
   readonly #lookups: Calls<LookupResult>;
   readonly #reverses: Calls<ReverseResult>;
   readonly #autocompletes: Calls<AutocompleteResult>;
@@ -83,6 +85,11 @@ export class PostcodeClient {
       timeoutMs: options.timeoutMs ?? 8000,
       maxRetries: options.maxRetries ?? 2,
       queue: createQueue(PARALLEL_REQUESTS),
+    };
+    // A user waits for each completion, so autocomplete gets a longer timeout than a lookup.
+    this.#autocompleteSettings = {
+      ...this.#settings,
+      timeoutMs: options.timeoutMs ?? AUTOCOMPLETE_TIMEOUT_MS,
     };
     this.#lookups = createCalls(cacheTtlMs);
     this.#reverses = createCalls(cacheTtlMs);
@@ -184,7 +191,7 @@ export class PostcodeClient {
     const { typed, request } = autocompleteRequest(q);
     const run = async (signal: AbortSignal): Promise<AutocompleteResult> =>
       readAutocomplete(
-        await send(this.#settings, request, { signal, timeoutRetried: false }),
+        await send(this.#autocompleteSettings, request, { signal, timeoutRetried: false }),
         typed,
       );
     return await this.#autocompletes.call(typed, run, options.signal);

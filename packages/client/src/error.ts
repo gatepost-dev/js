@@ -95,7 +95,8 @@ const ADVICE: Readonly<Record<PostcodeErrorCode, string>> = {
   forbidden: "The gateway refused the call. Check the key's scope and lookup level.",
   rate_limited: 'The gateway limits the requests of this key. Wait, then try again.',
   server_error: 'The gateway failed. Try again later.',
-  unexpected_response: 'The gateway sent a reply that this client cannot read.',
+  unexpected_response:
+    'The gateway sent a reply that this client cannot read. Try again, or update the client.',
   network_error: 'The request did not reach the gateway. Check the network and the baseUrl.',
   timeout: 'The gateway sent no response in time. Try again, or raise timeoutMs.',
 };

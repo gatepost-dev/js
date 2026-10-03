@@ -48,11 +48,42 @@ describe('the defaults of API-8', () => {
     expect(requests).toHaveLength(5);
   });
 
+  it('answers a call at once when maxRetries is very large', async () => {
+    const { client } = clientWith({ maxRetries: Number.MAX_SAFE_INTEGER }, VALID_LOOKUP);
+    expect((await client.lookup('FC-01-Z99-ZZ-01')).valid).toBe(true);
+  });
+
   it('keeps no result when cacheTtlMs is not set', async () => {
     const { client, requests } = clientWith({}, VALID_LOOKUP);
     await client.lookup('FC-01-Z99-ZZ-01');
     await client.lookup('FC-01-Z99-ZZ-01');
     expect(requests).toHaveLength(2);
+  });
+});
+
+describe('the timeout of autocomplete', () => {
+  it('ends an attempt after 15000 ms by default, and a lookup after 8000 ms', async () => {
+    const { client, requests } = clientWith({ maxRetries: 0 }, 'hang');
+    const lookup = client.lookup('FC-01-Z99-ZZ-01');
+    const autocomplete = client.autocomplete('FC0');
+    const settled = Promise.allSettled([lookup, autocomplete]);
+    await vi.advanceTimersByTimeAsync(7999);
+    expect(requests.map((request) => request.signal.aborted)).toEqual([false, false]);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(requests.map((request) => request.signal.aborted)).toEqual([true, false]);
+    await vi.advanceTimersByTimeAsync(6999);
+    expect(requests[1]?.signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(requests[1]?.signal.aborted).toBe(true);
+    await settled;
+  });
+
+  it('uses timeoutMs for autocomplete when the option is set', async () => {
+    const { client, requests } = clientWith({ maxRetries: 0, timeoutMs: 1000 }, 'hang');
+    const settled = Promise.allSettled([client.autocomplete('FC0')]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(requests[0]?.signal.aborted).toBe(true);
+    await settled;
   });
 });
 
@@ -142,7 +173,83 @@ describe('shared calls', () => {
   });
 });
 
+// A transport that answers after a delay, and obeys its signal, as fetch does.
+function slowTransport(delayMs: number) {
+  const requests: URL[] = [];
+  const transport: typeof fetch = (input, init) => {
+    requests.push(new URL(input instanceof Request ? input.url : input));
+    const signal = init?.signal;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        resolve(new Response(JSON.stringify(VALID_LOOKUP_BODY), { status: 200 }));
+      }, delayMs);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(signal.reason as Error);
+      });
+    });
+  };
+  return { transport, requests };
+}
+
+const VALID_LOOKUP_BODY = { data: { postcode: 'FC-01-Z99-ZZ-01', valid: true, status: 'valid' } };
+
+describe('shared calls that obey the signal', () => {
+  it('keeps the request for a caller that stays when the other caller leaves', async () => {
+    const { transport, requests } = slowTransport(50);
+    const client = new PostcodeClient({ transport });
+    const controller = new AbortController();
+    const leaving = client.lookup('FC-01-Z99-ZZ-01', { signal: controller.signal });
+    const staying = client.lookup('FC-01-Z99-ZZ-01');
+    await vi.advanceTimersByTimeAsync(10);
+    controller.abort();
+    await expect(leaving).rejects.toBe(controller.signal.reason);
+    await vi.advanceTimersByTimeAsync(100);
+    expect((await staying).valid).toBe(true);
+    expect(requests).toHaveLength(1);
+  });
+
+  it('does not keep a result that a clearCache call overtook', async () => {
+    const { transport, requests } = slowTransport(50);
+    const client = new PostcodeClient({ transport, cacheTtlMs: 60_000 });
+    const first = client.lookup('FC-01-Z99-ZZ-01');
+    await vi.advanceTimersByTimeAsync(10);
+    client.clearCache();
+    await vi.advanceTimersByTimeAsync(100);
+    await first;
+    const second = client.lookup('FC-01-Z99-ZZ-01');
+    await vi.advanceTimersByTimeAsync(100);
+    await second;
+    expect(requests).toHaveLength(2);
+  });
+});
+
+describe('the lookup level', () => {
+  it('shares and keeps a result for each level', async () => {
+    const { client, requests } = clientWith({ cacheTtlMs: 60_000 }, VALID_LOOKUP);
+    const [one, two] = await Promise.all([
+      client.lookup('FC-01-Z99-ZZ-01', { level: 1 }),
+      client.lookup('FC-01-Z99-ZZ-01', { level: 2 }),
+    ]);
+    expect([one.levelRequested, two.levelRequested]).toEqual([1, 2]);
+    expect(requests).toHaveLength(2);
+    expect((await client.lookup('FC-01-Z99-ZZ-01', { level: 2 })).levelRequested).toBe(2);
+    expect((await client.lookup('FC-01-Z99-ZZ-01', { level: 1 })).levelRequested).toBe(1);
+    expect(requests).toHaveLength(2);
+  });
+});
+
 describe('the cache', () => {
+  it('holds a bounded number of results', async () => {
+    const reverse = { status: 200, body: { data: { found: false, radius_m: 25 } } };
+    const { client, requests } = clientWith({ cacheTtlMs: 60_000 }, reverse);
+    for (let lat = 0; lat <= 1100; lat += 1) {
+      await client.reverse(lat / 100, 0);
+    }
+    await client.reverse(0, 0);
+    expect(requests).toHaveLength(1102);
+  });
+
   it('keeps a result for cacheTtlMs, and no longer', async () => {
     const { client, requests } = clientWith({ cacheTtlMs: 60_000 }, VALID_LOOKUP);
     await client.lookup('FC-01-Z99-ZZ-01');

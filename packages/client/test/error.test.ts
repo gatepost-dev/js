@@ -83,7 +83,8 @@ describe('clientError', () => {
     const error = clientError('unexpected_response', 'The body has no data field.');
     expect(error.code).toBe('unexpected_response');
     expect(error.message).toBe(
-      'The gateway sent a reply that this client cannot read. The body has no data field.',
+      'The gateway sent a reply that this client cannot read. Try again, or update the client. ' +
+        'The body has no data field.',
     );
   });
 });

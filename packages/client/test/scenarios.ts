@@ -11,7 +11,7 @@ import type { AutocompleteResult, LookupLevel, LookupResult, ReverseResult } fro
 
 /** One call of a scenario. */
 export type ScenarioCall =
-  | { readonly method: 'lookup'; readonly code: string; readonly level: LookupLevel }
+  | { readonly method: 'lookup'; readonly code: string; readonly level?: LookupLevel }
   | {
       readonly method: 'reverse';
       readonly lat: number;
@@ -103,7 +103,11 @@ async function outcomeOf(client: PostcodeClient, call: ScenarioCall): Promise<un
   try {
     switch (call.method) {
       case 'lookup':
-        return { result: lookupOutcome(await client.lookup(call.code, { level: call.level })) };
+        return {
+          result: lookupOutcome(
+            await client.lookup(call.code, call.level === undefined ? {} : { level: call.level }),
+          ),
+        };
       case 'reverse':
         return { result: reverseOutcome(await client.reverse(call.lat, call.lng, radius(call))) };
       case 'autocomplete':

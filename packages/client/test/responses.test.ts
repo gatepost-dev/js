@@ -207,7 +207,7 @@ describe('readAutocomplete', () => {
       const data = { segment: 'state', suggestions: [{ code: 'FC' }, item] };
       const error = unexpected(() => readAutocomplete(data, 'F'));
       expect(error.status).toBe(200);
-      expect(error.message).toContain('Try again later, or update the client.');
+      expect(error.message).toContain('Try again, or update the client.');
     },
   );
 
