@@ -114,6 +114,22 @@ describe('the options', () => {
     expect(() => new PostcodeClient({ apiKey: 'nipost_pk_live_abc' })).not.toThrow();
   });
 
+  it.each([
+    ' nipost_live_abc',
+    '\tnipost_live_abc',
+    '\nnipost_live_abc',
+    ' nipost_test_abc',
+    '\tnipost_test_abc',
+    '\nnipost_test_abc',
+    '\r\nnipost_live_abc \t',
+    '\r\nnipost_test_abc \t',
+  ])('refuses a secret key with surrounding white space in a web page: %j', (apiKey) => {
+    vi.stubGlobal('document', {});
+    expect(() => new PostcodeClient({ apiKey })).toThrow(
+      'A web page must not hold a secret key. Use a publishable key here.',
+    );
+  });
+
   it('allows a secret key on a server, where no document exists', () => {
     expect(() => new PostcodeClient({ apiKey: 'nipost_live_abc' })).not.toThrow();
   });
