@@ -1,6 +1,6 @@
 {
   "name": "@gatepost/client",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Unofficial. Not made or endorsed by NIPOST. Call NIPOST's postcode gateway.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/client#readme",
