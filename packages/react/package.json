@@ -1,0 +1,73 @@
+{
+  "name": "@gatepost/react",
+  "version": "0.0.0",
+  "description": "Unofficial. Not made or endorsed by NIPOST. A postcode field for React.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/react#readme",
+  "bugs": "https://github.com/gatepost-dev/js/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gatepost-dev/js.git",
+    "directory": "packages/react"
+  },
+  "type": "module",
+  "sideEffects": [
+    "./dist/index.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "nigeria",
+    "postcode",
+    "address",
+    "nipost",
+    "react",
+    "form"
+  ],
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "1 KB",
+      "ignore": [
+        "react",
+        "@gatepost/field"
+      ]
+    }
+  ],
+  "dependencies": {
+    "@gatepost/field": "workspace:^"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.0",
+    "react-18": "npm:react@^18.3.1",
+    "react-dom": "^19.3.0",
+    "react-dom-18": "npm:react-dom@^18.3.1"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "build": "tsdown",
+    "package:check": "run-s package:lint package:smoke",
+    "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
+    "package:smoke": "node scripts/smoke.mjs",
+    "api:update": "api-extractor run --local",
+    "licence-files:check": "cmp ../../LICENSE LICENSE && cmp ../../NOTICE NOTICE"
+  }
+}

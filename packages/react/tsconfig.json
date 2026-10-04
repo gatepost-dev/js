@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@gatepost/core": ["../core/src/index.ts"],
+      "@gatepost/client": ["../client/src/index.ts"],
+      "@gatepost/field": ["../field/src/index.ts"],
+      "@gatepost/react": ["./src/index.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

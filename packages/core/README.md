@@ -107,7 +107,7 @@ The package checks the form of a postcode. It cannot tell whether a building has
 | ------------- | ----------------------------------- |
 | Node          | 22 or later, or any current browser |
 | Module format | ESM only                            |
-| Gatepost spec | 0.2.0                               |
+| Gatepost spec | 0.3.0                               |
 
 ## Docs
 

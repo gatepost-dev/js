@@ -35,6 +35,8 @@
 | ----------------------------------------------- | ----------------------------------------------- | -------------------------- |
 | [`@gatepost/core`](packages/core)               | Parse, check and format postcodes offline.      | Alpha, not on npm yet      |
 | [`@gatepost/client`](packages/client)           | Call NIPOST's gateway, with retries and limits. | Alpha, not on npm yet      |
+| [`@gatepost/field`](packages/field)             | A postcode field for any web form.              | Alpha, not on npm yet      |
+| [`@gatepost/react`](packages/react)             | The postcode field as a React component.        | Alpha, not on npm yet      |
 | [`@gatepost/mock-server`](packages/mock-server) | Mock NIPOST's gateway for client tests.         | Private, never goes to npm |
 
 ## Example

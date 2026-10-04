@@ -47,6 +47,13 @@ const EXCEPTIONS = [
       'and @gatepost/core ships dist/ only, so nothing redistributes it. The package has one ' +
       'variant for each platform, so the name is a pattern.',
   },
+  {
+    name: /^(axe-core|@axe-core\/playwright)$/,
+    licence: 'MPL-2.0',
+    reason:
+      'Dev-only accessibility checks that the tests of the field run in a browser (T-10). We do ' +
+      'not change them, and the published packages ship dist/ only, so nothing redistributes them.',
+  },
 ];
 
 // "A OR B" passes when one alternative is allowed. This pattern reads nothing else, so an

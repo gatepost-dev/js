@@ -5,5 +5,8 @@ dist/
 coverage/
 temp/
 reports/
+test-results/
+playwright-report/
 .stryker-tmp/
 *.tsbuildinfo
+.vitest/

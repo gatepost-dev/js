@@ -5,4 +5,5 @@ spec
 **/temp
 **/etc/*.api.md
 **/spec-data.ts
+**/spec-messages.ts
 **/CHANGELOG.md

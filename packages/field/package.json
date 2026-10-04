@@ -1,0 +1,74 @@
+{
+  "name": "@gatepost/field",
+  "version": "0.0.0",
+  "description": "Unofficial. Not made or endorsed by NIPOST. A postcode field for any web form.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/field#readme",
+  "bugs": "https://github.com/gatepost-dev/js/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gatepost-dev/js.git",
+    "directory": "packages/field"
+  },
+  "type": "module",
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/element.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./element": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/element.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "nigeria",
+    "postcode",
+    "address",
+    "nipost",
+    "custom-element",
+    "form"
+  ],
+  "size-limit": [
+    {
+      "name": "module",
+      "path": "dist/index.js",
+      "limit": "20 KB"
+    },
+    {
+      "name": "element",
+      "path": "dist/element.js",
+      "limit": "20 KB"
+    }
+  ],
+  "dependencies": {
+    "@gatepost/client": "workspace:^",
+    "@gatepost/core": "workspace:^"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "test:browser": "playwright test --project=chromium",
+    "build": "tsdown",
+    "package:check": "run-s package:lint package:smoke",
+    "package:lint": "publint && attw --pack --profile esm-only && size-limit && api-extractor run",
+    "package:smoke": "node scripts/smoke.mjs",
+    "api:update": "api-extractor run --local",
+    "licence-files:check": "cmp ../../LICENSE LICENSE && cmp ../../NOTICE NOTICE"
+  },
+  "devDependencies": {
+    "@gatepost/mock-server": "workspace:*"
+  }
+}

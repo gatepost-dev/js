@@ -75,6 +75,20 @@ const GOOD = [
     code: `${WITH_EXAMPLE}\n${EXPRESSION}`,
   },
   {
+    name: 'a class getter with a doc comment and no @returns tag',
+    code: lines(
+      '/** A counter. */',
+      'export class Counter {',
+      '  #count = 1;',
+      '',
+      '  /** The count so far. */',
+      '  get count(): number {',
+      '    return this.#count;',
+      '  }',
+      '}',
+    ),
+  },
+  {
     name: 'an internal function with no example',
     code: `${docComment(PARAM, RETURNS, '@internal')}\n${FUNCTION}`,
   },
@@ -278,6 +292,19 @@ const BAD = [
     rule: 'jsdoc/require-example',
     name: 'an exported function expression with no example',
     code: `${WITHOUT_EXAMPLE}\n${EXPRESSION}`,
+  },
+  {
+    rule: 'jsdoc/require-returns',
+    name: 'a documented method that returns a value with no @returns tag',
+    code: lines(
+      '/** A counter. */',
+      'export class Counter {',
+      '  /** Counts one more. */',
+      '  next(): number {',
+      '    return 1;',
+      '  }',
+      '}',
+    ),
   },
   {
     rule: 'jsdoc/check-tag-names',

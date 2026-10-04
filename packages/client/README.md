@@ -109,7 +109,7 @@ The client also takes a `transport` option, a function like `fetch`, and each ca
 | ------------- | ---------------------------------------------- |
 | Node          | 22 or later, or a current browser with `fetch` |
 | Module format | ESM only                                       |
-| Gatepost spec | 0.2.0                                          |
+| Gatepost spec | 0.3.0                                          |
 
 ## Docs
 
