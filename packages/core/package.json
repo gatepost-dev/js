@@ -1,6 +1,6 @@
 {
   "name": "@gatepost/core",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Unofficial. Not made or endorsed by NIPOST. Parse Nigerian postcodes offline.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/core#readme",

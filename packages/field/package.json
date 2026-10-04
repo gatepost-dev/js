@@ -1,6 +1,6 @@
 {
   "name": "@gatepost/field",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Unofficial. Not made or endorsed by NIPOST. A postcode field for any web form.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/field#readme",
