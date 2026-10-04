@@ -43,7 +43,7 @@ function checkOptions(options: ClientOptions): void {
   if (apiKey === '') {
     throw new RangeError('apiKey must not be empty.');
   }
-  if (apiKey !== undefined && SECRET_KEY.test(apiKey) && 'document' in globalThis) {
+  if (apiKey !== undefined && SECRET_KEY.test(apiKey.trim()) && 'document' in globalThis) {
     throw new TypeError('A web page must not hold a secret key. Use a publishable key here.');
   }
 }
