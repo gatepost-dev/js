@@ -146,6 +146,14 @@ describe('autocompleteRequest', () => {
     expect(failure(() => autocompleteRequest(overLimit)).code).toBe('invalid_input');
   });
 
+  it('names the input limit when the text is over it', () => {
+    // Five letters after normalize, so only the length is wrong.
+    const overLimit = 'FC 10'.padEnd(maxInputCodePoints + 1);
+    const { message } = failure(() => autocompleteRequest(overLimit));
+    expect(message).toContain(`${String(maxInputCodePoints)} code points`);
+    expect(message).not.toContain('1 to 11');
+  });
+
   it('counts code points, not UTF-16 units, for the input limit', () => {
     // Each mathematical bold capital is one code point in two UTF-16 units. NFKC makes it a
     // plain letter, so text at the limit still works.
