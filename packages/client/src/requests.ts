@@ -129,7 +129,11 @@ export function autocompleteRequest(q: string): {
   readonly typed: string;
   readonly request: GatewayRequest;
 } {
-  const typed = isOverInputLimit(q) ? '' : normalize(q);
+  if (isOverInputLimit(q)) {
+    const rule = `The text has more than ${String(INPUT_LIMIT)} code points.`;
+    throw clientError('invalid_input', `${rule} Send no call for it.`);
+  }
+  const typed = normalize(q);
   if (!QUERY.test(typed)) {
     const rule = 'The text must hold 1 to 11 letters and digits after normalize.';
     throw clientError('invalid_input', `${rule} Send no call for empty text.`);
