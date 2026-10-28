@@ -3,7 +3,7 @@
   "version": "0.1.0-alpha.0",
   "description": "Unofficial. Not made or endorsed by NIPOST. A postcode field for any web form.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/field#readme",
+  "homepage": "https://gatepost-dev.github.io/docs/guides/html/",
   "bugs": "https://github.com/gatepost-dev/js/issues",
   "repository": {
     "type": "git",
@@ -35,10 +35,17 @@
   },
   "keywords": [
     "nigeria",
-    "postcode",
-    "address",
     "nipost",
+    "postcode",
+    "nigeria-postcode",
+    "nigerian-postcode",
+    "postal-code",
+    "postcode-validation",
+    "address",
+    "address-validation",
+    "digital-postcode",
     "custom-element",
+    "web-component",
     "form"
   ],
   "size-limit": [
