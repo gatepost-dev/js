@@ -1,5 +1,15 @@
 # @gatepost/field
 
+## 0.1.0-alpha.1
+
+### Patch Changes
+
+- ffa9526: Link the npm page of each package to its guide on the docs site, and add the search keywords for Nigeria's postcode.
+- Updated dependencies [045834c]
+- Updated dependencies [ffa9526]
+  - @gatepost/client@0.1.0-alpha.1
+  - @gatepost/core@0.1.0-alpha.2
+
 ## 0.1.0-alpha.0
 
 ### Minor Changes

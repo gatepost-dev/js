@@ -1,5 +1,14 @@
 # @gatepost/client
 
+## 0.1.0-alpha.1
+
+### Patch Changes
+
+- 045834c: Name the 64 code point limit in the error for autocomplete text over it.
+- ffa9526: Link the npm page of each package to its guide on the docs site, and add the search keywords for Nigeria's postcode.
+- Updated dependencies [ffa9526]
+  - @gatepost/core@0.1.0-alpha.2
+
 ## 0.1.0-alpha.0
 
 ### Minor Changes
