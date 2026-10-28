@@ -3,7 +3,7 @@
   "version": "0.1.0-alpha.0",
   "description": "Unofficial. Not made or endorsed by NIPOST. Call NIPOST's postcode gateway.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/client#readme",
+  "homepage": "https://gatepost-dev.github.io/docs/guides/typescript-client/",
   "bugs": "https://github.com/gatepost-dev/js/issues",
   "repository": {
     "type": "git",
@@ -28,9 +28,17 @@
   },
   "keywords": [
     "nigeria",
+    "nipost",
     "postcode",
+    "nigeria-postcode",
+    "nigerian-postcode",
+    "postal-code",
+    "postcode-validation",
     "address",
-    "nipost"
+    "address-validation",
+    "digital-postcode",
+    "api-client",
+    "nipost-api"
   ],
   "size-limit": [
     {

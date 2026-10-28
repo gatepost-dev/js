@@ -3,7 +3,7 @@
   "version": "0.1.0-alpha.0",
   "description": "Unofficial. Not made or endorsed by NIPOST. A postcode field for React.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/gatepost-dev/js/tree/main/packages/react#readme",
+  "homepage": "https://gatepost-dev.github.io/docs/guides/react/",
   "bugs": "https://github.com/gatepost-dev/js/issues",
   "repository": {
     "type": "git",
@@ -30,9 +30,15 @@
   },
   "keywords": [
     "nigeria",
-    "postcode",
-    "address",
     "nipost",
+    "postcode",
+    "nigeria-postcode",
+    "nigerian-postcode",
+    "postal-code",
+    "postcode-validation",
+    "address",
+    "address-validation",
+    "digital-postcode",
     "react",
     "form"
   ],
