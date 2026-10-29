@@ -170,7 +170,7 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   #errorsShown = false;
   readonly #requests = new Requests();
   #client: PostcodeClient | null = null;
-  #keyRefused = false;
+  #keyRefused: 'secret_key' | 'unsupported_key' | null = null;
   #lastText = '';
 
   /** Builds the shadow tree. The browser calls it when it creates the element. */
@@ -379,20 +379,25 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
     const apiKey = this.#key;
     const baseUrl = this.getAttribute('base-url');
     this.#client = null;
-    this.#keyRefused = false;
+    this.#keyRefused = null;
     if (apiKey === '') {
       return;
     }
     try {
       this.#client = new PostcodeClient(baseUrl === null ? { apiKey } : { apiKey, baseUrl });
     } catch (error) {
-      // The client throws a TypeError for a secret key in a web page (SEC-1).
+      // The client throws a TypeError for each key but a publishable key in a web page (SEC-1).
       if (!(error instanceof TypeError)) {
         throw error;
       }
-      this.#keyRefused = true;
+      const secret = /^nipost_(test|live)_/.test(apiKey);
+      this.#keyRefused = secret ? 'secret_key' : 'unsupported_key';
       // eslint-disable-next-line no-console -- spec/field.md asks for one error for the developer.
-      console.error('gatepost-postcode-field: api-key holds a secret key. Use a publishable key.');
+      console.error(
+        secret
+          ? 'gatepost-postcode-field: api-key holds a secret key. Use a publishable key.'
+          : 'gatepost-postcode-field: api-key is not a publishable key. Use a publishable key.',
+      );
     }
   }
 
@@ -509,11 +514,12 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
   }
 
   async #lookUp(postcode: Postcode, asked: Asked): Promise<void> {
-    if (this.#keyRefused) {
-      this.#requests.outcome = { state: 'error', note: { key: 'secret_key' } };
+    const refused = this.#keyRefused;
+    if (refused !== null) {
+      this.#requests.outcome = { state: 'error', note: { key: refused } };
       // The event waits for the render and for the change that caused the lookup.
       queueMicrotask(() => {
-        this.#raise('gatepost-error', { code: 'secret_key' });
+        this.#raise('gatepost-error', { code: refused });
       });
       return;
     }
@@ -567,10 +573,11 @@ class FieldElement extends ElementBase implements PostcodeFieldElement {
         if (fix.code !== null) {
           this.#raise('gatepost-error', { code: fix.code });
         }
-      } else if (this.#keyRefused) {
-        // The key became a secret key while the field waited for the position.
-        this.#finish({ state: 'error', note: { key: 'secret_key' } });
-        this.#raise('gatepost-error', { code: 'secret_key' });
+      } else if (this.#keyRefused !== null) {
+        // The key became a refused key while the field waited for the position.
+        const code = this.#keyRefused;
+        this.#finish({ state: 'error', note: { key: code } });
+        this.#raise('gatepost-error', { code });
       } else {
         // The key is gone: nothing is sent, and the field shows the state that its text gives.
         this.#requests.end();

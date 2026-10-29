@@ -66,7 +66,7 @@ A user who types `fc 01 z99 zz 01` sends `postcode=FC-01-Z99-ZZ-01`. With no key
 </form>
 ```
 
-Use a publishable key, which starts with `nipost_pk_`, and add your site to its allowed origins in NIPOST's dashboard. Anyone can read a key in a page, so the field refuses a secret key: it sends no request, and it logs one console error for you. A key holds a lookup level, and a call above it fails. The field then says that it could not check the postcode. See [`@gatepost/client`](https://github.com/gatepost-dev/js/tree/main/packages/client#readme).
+Use a publishable key, which starts with `nipost_pk_`, and add your site to its allowed origins in NIPOST's dashboard. Anyone can read a key in a page, so the field refuses a secret key and any other key that is not a publishable key: it sends no request, and it logs one console error for you. A key holds a lookup level, and a call above it fails. The field then says that it could not check the postcode. See [`@gatepost/client`](https://github.com/gatepost-dev/js/tree/main/packages/client#readme).
 
 A postcode that the gateway does not know, or a failed request, never stops the form. The gateway's data is new, so check the postcode again on your server.
 
@@ -96,11 +96,11 @@ A postcode that the gateway does not know, or a failed request, never stops the 
 
 The events bubble, so a page can listen on the form. At level 2, `gatepost-confirm` gives the recent house address of the postcode. The field never shows it, and your page should not show it to the person who typed the postcode, who can have typed any postcode.
 
-| Event              | `detail`                                                                                        |
-| ------------------ | ----------------------------------------------------------------------------------------------- |
-| `gatepost-change`  | `value`, `postcode`, `source` (`typed`, `pasted`, `suggestion` or `gps`) and `accuracyM`        |
-| `gatepost-confirm` | `lookup`, the result of the lookup                                                              |
-| `gatepost-error`   | `code`, an error code of `@gatepost/client`, or `secret_key`, `gps_denied` or `gps_unavailable` |
+| Event              | `detail`                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `gatepost-change`  | `value`, `postcode`, `source` (`typed`, `pasted`, `suggestion` or `gps`) and `accuracyM`                           |
+| `gatepost-confirm` | `lookup`, the result of the lookup                                                                                 |
+| `gatepost-error`   | `code`, an error code of `@gatepost/client`, or `secret_key`, `unsupported_key`, `gps_denied` or `gps_unavailable` |
 
 ### Change the words and the look
 
@@ -158,7 +158,7 @@ The parts `field`, `label`, `hint`, `input`, `message` and `button` take `::part
 | ------------- | ---------------------------------------------------------- |
 | Browser       | a current Chrome, Edge or Firefox, or Safari 16.4 or later |
 | Module format | ESM only                                                   |
-| Gatepost spec | 0.3.0                                                      |
+| Gatepost spec | 0.4.0                                                      |
 
 The package exports `SPEC_VERSION`, the version of the Gatepost spec that it implements. A server can import the package: it defines the element only in a browser.
 
