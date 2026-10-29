@@ -10,7 +10,7 @@ for (const [entry, exports] of [
   ['@gatepost/field', field],
   ['@gatepost/field/element', element],
 ]) {
-  if (exports.SPEC_VERSION !== '0.3.0' || typeof exports.PostcodeFieldElement !== 'function') {
+  if (exports.SPEC_VERSION !== '0.4.0' || typeof exports.PostcodeFieldElement !== 'function') {
     throw new Error(`${entry} gave ${Object.keys(exports).join(', ')} on a server.`);
   }
 }

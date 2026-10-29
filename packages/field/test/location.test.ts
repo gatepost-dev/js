@@ -550,6 +550,23 @@ describe('a location request and the settings', () => {
     expect(error).toHaveBeenCalledTimes(1);
   });
 
+  it('sends nothing and says so when the key is unsupported as the position arrives', async () => {
+    const place = holdDevice();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const fetch = vi.spyOn(globalThis, 'fetch');
+    const { form, field, location, message } = mount(FIELD);
+    const errors = listen(form);
+    await userEvent.click(location);
+    field.setAttribute('api-key', 'pk_abc');
+    place(5);
+    await vi.waitFor(() => {
+      expect(errors).toEqual([{ code: 'unsupported_key' }]);
+    });
+    expect(message()).toBe('We cannot check postcodes on this page. You can still continue.');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+
   it('sends nothing and shows the state of the text when the key is gone', async () => {
     const place = holdDevice();
     const fetch = vi.spyOn(globalThis, 'fetch');

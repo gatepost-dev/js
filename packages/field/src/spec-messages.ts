@@ -26,6 +26,7 @@ export type MessageKey =
   | 'confirmed_place'
   | 'check_failed'
   | 'secret_key'
+  | 'unsupported_key'
   | 'use_location'
   | 'locating'
   | 'gps_coarse'
@@ -65,6 +66,7 @@ export const ENGLISH: Messages = {
   confirmed_place: 'We found this postcode: {locality}, {lga}, {state}.',
   check_failed: 'We could not check this postcode just now. You can still continue.',
   secret_key: 'We cannot check postcodes on this page. You can still continue.',
+  unsupported_key: 'We cannot check postcodes on this page. You can still continue.',
   use_location: 'Use my location',
   locating: 'Finding your location.',
   gps_coarse: 'We added part of your postcode from your location. Type the rest.',

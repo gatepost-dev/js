@@ -114,6 +114,30 @@ describe('the options', () => {
     expect(() => new PostcodeClient({ apiKey: 'nipost_pk_live_abc' })).not.toThrow();
   });
 
+  it.each(['abc', 'nipost_abc', 'nipost_pk', 'NIPOST_PK_abc', 'x nipost_pk_abc'])(
+    'refuses an unsupported key in a web page: %j',
+    (apiKey) => {
+      vi.stubGlobal('document', {});
+      expect(() => new PostcodeClient({ apiKey })).toThrow(TypeError);
+      expect(() => new PostcodeClient({ apiKey })).toThrow(
+        'The key is not a publishable key. Use a key that starts with nipost_pk_ here.',
+      );
+    },
+  );
+
+  it.each([' nipost_pk_abc', '\tnipost_pk_abc\n', '\r\nnipost_pk_abc \t'])(
+    'allows a publishable key with surrounding white space in a web page: %j',
+    (apiKey) => {
+      vi.stubGlobal('document', {});
+      expect(() => new PostcodeClient({ apiKey })).not.toThrow();
+    },
+  );
+
+  it('allows no key in a web page', () => {
+    vi.stubGlobal('document', {});
+    expect(() => new PostcodeClient()).not.toThrow();
+  });
+
   it.each([
     ' nipost_live_abc',
     '\tnipost_live_abc',
@@ -130,8 +154,9 @@ describe('the options', () => {
     );
   });
 
-  it('allows a secret key on a server, where no document exists', () => {
+  it('allows a secret key and an unsupported key on a server, where no document exists', () => {
     expect(() => new PostcodeClient({ apiKey: 'nipost_live_abc' })).not.toThrow();
+    expect(() => new PostcodeClient({ apiKey: 'abc' })).not.toThrow();
   });
 
   it('gives two clients their own keys and their own caches (API-9)', async () => {
