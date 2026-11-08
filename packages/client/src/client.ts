@@ -18,6 +18,7 @@ import type {
 const PARALLEL_REQUESTS = 4;
 const AUTOCOMPLETE_TIMEOUT_MS = 15_000;
 const SECRET_KEY = /^nipost_(test|live)_/;
+const PUBLISHABLE_KEY = 'nipost_pk_';
 
 // The numeric options and the rule for each. A value that breaks its rule is a programmer error.
 const NUMBER_RULES = [
@@ -43,8 +44,18 @@ function checkOptions(options: ClientOptions): void {
   if (apiKey === '') {
     throw new RangeError('apiKey must not be empty.');
   }
-  if (apiKey !== undefined && SECRET_KEY.test(apiKey.trim()) && 'document' in globalThis) {
+  if (apiKey === undefined || !('document' in globalThis)) {
+    return;
+  }
+  // A browser drops white space around a header value, so the check reads the trimmed key.
+  const key = apiKey.trim();
+  if (SECRET_KEY.test(key)) {
     throw new TypeError('A web page must not hold a secret key. Use a publishable key here.');
+  }
+  if (!key.startsWith(PUBLISHABLE_KEY)) {
+    throw new TypeError(
+      `The key is not a publishable key. Use a key that starts with ${PUBLISHABLE_KEY} here.`,
+    );
   }
 }
 
@@ -76,7 +87,7 @@ export class PostcodeClient {
    *   and the cache time. Each one is optional.
    * @throws RangeError for a `timeoutMs` of 0 or less, a `maxRetries` that is not a whole
    *   number of 0 or more, a `cacheTtlMs` that is negative or not finite, or an empty `apiKey`.
-   * @throws TypeError for a secret key in a web page.
+   * @throws TypeError for a key in a web page that is not a publishable key.
    */
   constructor(options: ClientOptions = {}) {
     checkOptions(options);

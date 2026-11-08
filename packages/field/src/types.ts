@@ -34,10 +34,11 @@ export interface ConfirmDetail {
 }
 
 /**
- * Why the field raised `gatepost-error`: an error code of the client, a secret key in the page,
- * or a location that the user refused or the device did not give.
+ * Why the field raised `gatepost-error`: an error code of the client, a secret key or an
+ * unsupported key in the page, or a location that the user refused or the device did not give.
  */
-export type FieldErrorCode = PostcodeErrorCode | 'secret_key' | 'gps_denied' | 'gps_unavailable';
+export type FieldErrorCode =
+  PostcodeErrorCode | 'secret_key' | 'unsupported_key' | 'gps_denied' | 'gps_unavailable';
 
 /**
  * The detail of the event `gatepost-error`.

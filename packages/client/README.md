@@ -52,7 +52,7 @@ result.valid; // true
 
 The examples use `FC-01-Z99-ZZ-01`, a synthetic postcode, and show the answers of Gatepost's mock server, which CI runs them against. The real gateway does not know this postcode.
 
-Get a key from NIPOST's dashboard. The gateway refuses every call without a key. A key that starts with `nipost_test_` or `nipost_live_` is a secret key, so keep it on a server. The client refuses a secret key in a page that has a `document`.
+Get a key from NIPOST's dashboard. The gateway refuses every call without a key. A key that starts with `nipost_test_` or `nipost_live_` is a secret key, so keep it on a server. In a page that has a `document`, the client accepts only a publishable key, which starts with `nipost_pk_`, and refuses any other key.
 
 Each call raises a `PostcodeError` when it cannot give a result. Its `code` is one of `invalid_input`, `unauthorized`, `insufficient_credits`, `origin_not_allowed`, `forbidden`, `rate_limited`, `server_error`, `unexpected_response`, `network_error` and `timeout`.
 
@@ -109,7 +109,7 @@ The client also takes a `transport` option, a function like `fetch`, and each ca
 | ------------- | ---------------------------------------------- |
 | Node          | 22 or later, or a current browser with `fetch` |
 | Module format | ESM only                                       |
-| Gatepost spec | 0.3.0                                          |
+| Gatepost spec | 0.4.0                                          |
 
 ## Docs
 

@@ -421,3 +421,22 @@ describe('a secret key in the page', () => {
     expect(error).not.toHaveBeenCalled();
   });
 });
+
+describe('an unsupported key in the page', () => {
+  it('sends no request, logs one error and raises unsupported_key', async () => {
+    const { requests } = scriptGateway();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { form, input, location, message } = mount(
+      '<gatepost-postcode-field api-key=" pk_abc " gps></gatepost-postcode-field>',
+    );
+    const errors = listen<ErrorDetail>(form, 'gatepost-error');
+    expect(location.hidden).toBe(true);
+    await userEvent.type(input, 'FC01Z99ZZ01');
+    expect(message()).toBe('We cannot check postcodes on this page. You can still continue.');
+    expect(errors).toEqual([{ code: 'unsupported_key' }]);
+    expect(consoleError).toHaveBeenCalledOnce();
+    expect(String(consoleError.mock.calls[0]?.[0])).toContain('not a publishable key');
+    expect(String(consoleError.mock.calls[0]?.[0])).not.toContain('pk_abc');
+    expect(requests).toEqual([]);
+  });
+});

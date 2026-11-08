@@ -95,7 +95,7 @@ The [README of `@gatepost/field`](https://github.com/gatepost-dev/js/tree/main/p
 | React         | 18 or 19                 |
 | Browser       | as for `@gatepost/field` |
 | Module format | ESM only                 |
-| Gatepost spec | 0.3.0                    |
+| Gatepost spec | 0.4.0                    |
 
 The package exports `SPEC_VERSION`, the version of the Gatepost spec that it implements.
 

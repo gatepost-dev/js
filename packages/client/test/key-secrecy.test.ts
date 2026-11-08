@@ -124,6 +124,18 @@ describe('the API key in an error', () => {
     expectNoKey(thrown);
   });
 
+  it('is not in the error that refuses an unsupported key in a web page', () => {
+    vi.stubGlobal('document', {});
+    let thrown: unknown;
+    try {
+      new PostcodeClient({ apiKey: SECRET_PART });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(TypeError);
+    expectNoKey(thrown);
+  });
+
   it('is not in the error of an option that breaks its rule', () => {
     let thrown: unknown;
     try {

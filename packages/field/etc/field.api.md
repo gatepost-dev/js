@@ -30,10 +30,10 @@ export interface ErrorDetail {
 }
 
 // @public
-export type FieldErrorCode = PostcodeErrorCode | "secret_key" | "gps_denied" | "gps_unavailable";
+export type FieldErrorCode = PostcodeErrorCode | "secret_key" | "unsupported_key" | "gps_denied" | "gps_unavailable";
 
 // @public
-export type MessageKey = "label" | "hint" | "empty" | "bad_character" | "bad_length" | "unknown_state" | "bad_lga" | "bad_area" | "bad_unit" | "suggestion" | "use_suggestion" | "legacy_accepted" | "legacy_rejected" | "valid" | "checking" | "not_found" | "confirmed" | "confirmed_place" | "check_failed" | "secret_key" | "use_location" | "locating" | "gps_coarse" | "gps_not_found" | "gps_denied" | "gps_unavailable";
+export type MessageKey = "label" | "hint" | "empty" | "bad_character" | "bad_length" | "unknown_state" | "bad_lga" | "bad_area" | "bad_unit" | "suggestion" | "use_suggestion" | "legacy_accepted" | "legacy_rejected" | "valid" | "checking" | "not_found" | "confirmed" | "confirmed_place" | "check_failed" | "secret_key" | "unsupported_key" | "use_location" | "locating" | "gps_coarse" | "gps_not_found" | "gps_denied" | "gps_unavailable";
 
 // @public
 export type Messages = Readonly<Record<MessageKey, string>>;
@@ -67,6 +67,6 @@ export const PostcodeFieldElement: {
 };
 
 // @public
-export const SPEC_VERSION = "0.3.0";
+export const SPEC_VERSION = "0.4.0";
 
 ```

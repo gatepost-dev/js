@@ -8,7 +8,7 @@
  * ```ts
  * import { SPEC_VERSION } from '@gatepost/core';
  *
- * SPEC_VERSION; // '0.3.0'
+ * SPEC_VERSION; // '0.4.0'
  * ```
  */
-export const SPEC_VERSION = '0.3.0';
+export const SPEC_VERSION = '0.4.0';
